@@ -1,1 +1,2 @@
-# SeasonUp_DevelopSupportOnly
+# 僕以外がこのリポジトリを見れるのはヤベー話ってもんだぜ
+##なにもすんなよ
