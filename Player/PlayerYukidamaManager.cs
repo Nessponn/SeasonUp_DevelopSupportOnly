@@ -8,17 +8,17 @@ public class PlayerYukidamaManager : MonoBehaviour
     private PlayerController PC;
     //private Player_Audio PA;
 
-
+    /*
     private enum Move_dir
     {
         Left, Right, Stop
     }
     private Move_dir movedirection = Move_dir.Stop;
-
+    */
     //整数型
 
     private int charge = 0;
-    private int charge_MAX = 20;
+    private int charge_MAX = 20;//チャージに掛かるフレーム数。
 
     //スピンアタック関連変数
     private int spin_counter = 0;//スピンアタックで浮くことができる回数。
@@ -30,16 +30,15 @@ public class PlayerYukidamaManager : MonoBehaviour
     private bool Destroyflag;
 
     private bool ChargeMode = false;
-    private bool Input_AttackButton = false;
+    
 
     private Rigidbody2D rbody;
     private Animator anim;
 
     public GameObject SnowBall;//攻撃用雪玉
-    private GameObject cloneSnow;//生み出した雪玉
     public GameObject[] ball = new GameObject[6];//雪玉溜めるときに生成される奴
 
-    private bool AddPower = true;//falseのときは雪玉のため動作を受け付けず、同じ雪玉を再びふゆかの頭の上には乗らない
+    
 
 
     private bool onSnowBall = false;//こいつがtrueのとき、雪玉に乗り続ける
@@ -47,6 +46,11 @@ public class PlayerYukidamaManager : MonoBehaviour
     private bool OnceOnJump = false;//雪玉からジャンプで降りるとき一回だけ発動。どこかに着地するとtrueに戻る
 
     private bool SpinAttack = false;
+
+    //向きの判定
+    private bool left;
+    private bool right = true;//最初に未操作だった場合は右向きをデフォルトにする
+
     //UpdateでSpinとかの読み取りをしていく
 
     public LayerMask SnowBallLayer;//雪玉のこと
@@ -56,92 +60,90 @@ public class PlayerYukidamaManager : MonoBehaviour
     public AudioClip ChargeSE;
     private void Start()
     {
-        PC = GetComponent<PlayerController>();
-        PSC = GetComponent<PlayerStatusController>();
-        //PA = GetComponent<Player_Audio>();
         rbody = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
-
-        yukidama_floatSafety[0] = true;
-        yukidama_floatSafety[1] = true;
-        yukidama_floatSafety[2] = true;
     }
+
+    public void ChargeMode_Setter(bool Setter)
+    {
+        Input_AttackButton = Setter;
+    }
+
+    public void ChengeVector_Left()//左ボタンが押されたとき、雪玉の飛ばす方向を左に変更する
+    {
+        left = true;
+        right = false;
+    }
+
+    public void ChengeVector_Right()//右ボタンが押されたとき、雪玉の飛ばす方向を右に変更する
+    {
+        left = false;
+        right = true;
+    }
+
+    public void Throwing()
+    {
+        throwingBall = false;
+    }
+
+    //雪玉のフラグ全般のbool
+    private bool Input_AttackButton = false;//攻撃ボタンが押されたかの入力
+    //private bool AddPower = true;//falseのときは雪玉のため動作を受け付けず、同じ雪玉を再びふゆかの頭の上には乗らない
+    private bool throwingBall;//雪玉を放ってから消えるまではtrue
+
     private void Update()
     {
-        Debug.Log(rbody.velocity);
-        GameObject snowrbody = cloneSnow;
 
-        //玉乗りギミック
-        //雪玉発射中かつ、ふゆかは止まっているかつ、ジャンプボタンが押されないかつ、
-        if (!AddPower)//雪玉に乗っているときの処理
-        {
-            if (movedirection == Move_dir.Stop && JumpOnYukidama)
+
+        //後で状態分け
+        //雪玉ボタンが押されているか Input_AttackButton
+        //雪は生成されているか clonesnow
+        //雪玉を生成してはなった後の状況か throwingBall 雪が消えたらtrueに戻す
+        var cloneSnow = GameObject.FindWithTag("SnowBall");
+        if (!cloneSnow)//雪玉が存在しているか.
+        {//存在しない場合は雪玉を貯める処理を実行できる
+
+            Debug.Log("まだ生成されていません");
+            if (Input_AttackButton)
             {
-                Debug.Log("１");
-                if (onSnowBall)
+                AttackCharge();
+            }
+            else//アタックボタンが離されたら、貯めの過程の処理の変数を初期状態に戻す
+            {
+                //Spin_Up();
+            }
+        }
+        else
+        {
+            Debug.Log("生成されています");
+            if (!throwingBall)//まだボールを投げていないなら攻撃ボタンの入力を受け付ける
+            {
+                if (Input_AttackButton)
                 {
-                    Debug.Log("2");
-                    
-                    Vector3 yukipos = this.transform.position;
-                    yukipos.x = cloneSnow.transform.position.x;
-                    yukipos.y = cloneSnow.transform.position.y + 0.3f;
-                    this.transform.position = yukipos;
-                    
-
-                    
-
-
-                    rbody.velocity = new Vector2(snowrbody.GetComponent<Rigidbody2D>().velocity.x, snowrbody.GetComponent<Rigidbody2D>().velocity.y);
+                    Hold_SnowBall();
+                }
+                else
+                {
+                    //攻撃を受けた時も以下の二行のコードを別の場所で実行する
+                    throwingBall = true;
+                    //Spin_Up();
+                    Yukidama_Shot();
                 }
             }
-        }
-        else
-        {
-            //if (!JumpOnYukidama) PSC.JumpSetter(false);
-        }
 
-        //すぐに消す
-        Debug.Log("clonesnow = " + cloneSnow);
-        Debug.Log("onSnowBall = " + onSnowBall);
-
-        if (cloneSnow)//そもそも雪玉が無い時に探知する必要はない
-        {
-            onSnowBall = Physics2D.Linecast(transform.position - (transform.up * 0.1f), transform.position - (transform.up * 0.15f) + (transform.right * 0.1f), SnowBallLayer)
-                   || Physics2D.Linecast(transform.position - (transform.up * 0.1f), transform.position - (transform.up * 0.15f) - (transform.right * 0.1f), SnowBallLayer);
-        }
-        else
-        {
-            onSnowBall = false;
-        }
-        /*
-        if (onSnowBall)
-        {
-            onSnowBall = false;
-            AlwaysOnSnowBall = true;
-        }
-        */
-        if (Input_AttackButton && AddPower)
-        {
-            AttackCharge();
-        }
-
-        //ここでデストロイ判定管理も行うと、アンドロイドでも雪玉が消えてくれる
-        if (!AddPower)
-        {
-            if (Destroyflag && (cloneSnow.transform.position.y <= -25 || cloneSnow.GetComponent<Rigidbody2D>().velocity == Vector2.zero))
+            if (throwingBall)
             {
-                cloneSnow.GetComponent<Yukidama_PrefabManager>().Destroyed();
-                Destroyflag = false;
-                AddPower = true;
+                if (cloneSnow.transform.position.y <= -25 || cloneSnow.gameObject.GetComponent<Rigidbody2D>().velocity == Vector2.zero)
+                {
+                    cloneSnow.GetComponent<Yukidama_PrefabManager>().Destroy();
+                }
             }
+            
         }
-
-        if (PSC.JumpGetter())
-        {
-            spin_counter = 0;
-        }
-
     }
+
+
+
 
     private void AttackCharge()//スピン、雪玉の処理
     {
@@ -174,53 +176,45 @@ public class PlayerYukidamaManager : MonoBehaviour
                     
                     YUKIDAMA_cancreate = false;
 
-                    //PA.ChargeAudio();
                     PlayAudio(ChargeSE);
                 }
 
             }
             else if (charge < charge_MAX)
             {
-                ball[0].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 1, this.transform.position.y + 2.8f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[0].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
+                
+                ball[0].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 1, this.transform.position.y + 3f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[0].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge*3) * charge);
 
-                ball[1].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 2, this.transform.position.y + 1.4f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[1].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
+                ball[1].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 2, this.transform.position.y + 1.5f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[1].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge * 3) * charge);
 
-                ball[2].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 1, this.transform.position.y - 0.4f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[2].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
+                ball[2].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x + 1, this.transform.position.y - 0.5f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[2].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge * 3) * charge);
 
-                ball[3].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 1, this.transform.position.y - 0.4f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[3].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
+                ball[3].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 1, this.transform.position.y - 0.5f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[3].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge * 3) * charge);
 
-                ball[4].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 2, this.transform.position.y + 1.4f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[4].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
+                ball[4].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 2, this.transform.position.y + 1.5f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[4].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge *3) * charge);
 
-                ball[5].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 1, this.transform.position.y + 2.8f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
-                ball[5].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Vector3.forward, -15f * charge);
-
-                /*//これと同じも内容のものをダメージ受けた時に外部から受け付ける
-                if (!Move_Ok)
-                {
-                    charge = 0;
-                    ChargeMode = false;
-                }
-                */
+                ball[5].transform.position = Vector3.Lerp(new Vector3(this.transform.position.x - 1, this.transform.position.y + 3f, this.transform.position.z), new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), (float)charge / charge_MAX);
+                ball[5].transform.RotateAround(new Vector3(this.transform.position.x, this.transform.position.y + 1.5f, this.transform.position.z), Vector3.forward, -30f * Mathf.Log(charge_MAX, charge * 3) * charge);
             }
 
             else if (charge == charge_MAX)
             {
+                Debug.Log("雪玉生成");
                 ball[0].SetActive(false);
                 ball[1].SetActive(false);
                 ball[2].SetActive(false);
                 ball[3].SetActive(false);
                 ball[4].SetActive(false);
                 ball[5].SetActive(false);
-                cloneSnow = Instantiate(SnowBall, new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Quaternion.identity);
+                Instantiate(SnowBall, new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z), Quaternion.identity);
             }
             else
             {
-                cloneSnow.GetComponent<Rigidbody2D>().velocity = new Vector2(0, 0);
                 if (charge >= 20) Hold_SnowBall();
             }
         }
@@ -238,7 +232,6 @@ public class PlayerYukidamaManager : MonoBehaviour
 
         if (charge < charge_MAX)//スピンジャンプ処理に移る場合
         {
-            //PA.StopAudio();
             PlayAudio(null);
             charge = 0;
             YUKIDAMA_cancreate = true;
@@ -252,61 +245,44 @@ public class PlayerYukidamaManager : MonoBehaviour
             yukidama_floatSafety[0] = true;
             yukidama_floatSafety[1] = true;
 
-            if (AddPower)
-            {
-                Yukidama_Shot();
-                Destroyflag = true;
-                AddPower = false;//AddForceを一度この瞬間にしか発動させないため
-            }
-
-            //cloneSnow.GetComponent<SnowBallManager_Mk3>().shotflag_Set(true);
-            //AddPower = true;
-            //Yukidama_Shot();
         }
     }
 
     private void Yukidama_Shot()
     {
-        if (PSC.RightGetter() == true)
+        var cloneSnow = GameObject.FindWithTag("SnowBall");
+        if (right)//最後に入力された向きが右であれば
         {
             cloneSnow.GetComponent<Rigidbody2D>().velocity = (Vector3.right * 4 * 3f - Vector3.up * 6f);
         }
-        if (PSC.LeftGetter() == true)
+        if (left)//最後に入力された向きが左であれば
         {
             cloneSnow.GetComponent<Rigidbody2D>().velocity = (Vector3.left * 4 * 3f - Vector3.up * 6f);
         }
     }
 
     //ジャンプの機能を付けるまでいったんコメントアウト
-    public void SpinJump()
+    private void SpinJump()//空中にいるとき、チャージを途中で終了するとスピンに移行
     {
-        if (!PSC.JumpGetter())
+        var PlayerController = GetComponent<PlayerController>();
+
+        if(PlayerController != null)
         {
-            //PA.SpinAudio();
-            PlayOneShotAudio(SpinSE);
-            StartCoroutine(SpinAnim());//ジャンプ中、スピンのアニメーション＆スピン中は雑魚敵なら倒せるようにする   
-        }
-        if (!PSC.JumpGetter())//地面から浮いていた場合に発生
-        {
-            if (spin_counter <= 2 && spin_counter >= 0 && rbody.velocity.y < 0)//降下開始から一度もスピンしていない場合
+
+            if (!PlayerController.FloorTakenGetter())
             {
-                switch (movedirection)
+                PlayOneShotAudio(SpinSE);
+                StartCoroutine(SpinAnim());//ジャンプ中、スピンのアニメーション＆スピン中は雑魚敵なら倒せるようにする   
+            }
+            if (!PlayerController.FloorTakenGetter())//地面から浮いていた場合に発生
+            {
+                if (spin_counter <= 2 && spin_counter >= 0 && rbody.velocity.y < 0)//降下開始から一度もスピンしていない場合
                 {
-                    case Move_dir.Left:
-
-                        rbody.velocity = new Vector2(rbody.velocity.x, 0);
-                        break;
-                    case Move_dir.Right:
-
-                        rbody.velocity = new Vector2(rbody.velocity.x, 0);
-                        break;
-                    case Move_dir.Stop:
-
-                        rbody.velocity = new Vector2(0, 0);
-                        break;
+                    rbody.velocity = new Vector2(rbody.velocity.x, 0);
+                    
+                    rbody.AddForce(Vector3.up * 250 * spin_counter);
+                    spin_counter++;
                 }
-                rbody.AddForce(Vector3.up * 250 * spin_counter);
-                spin_counter++;
             }
         }
     }
@@ -322,34 +298,16 @@ public class PlayerYukidamaManager : MonoBehaviour
 
     private void Hold_SnowBall()
     {
-        cloneSnow.transform.position = new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z);
+        var cloneSnow = GameObject.FindWithTag("SnowBall"); 
+        if(cloneSnow != null)
+        {
+            cloneSnow.GetComponent<Rigidbody2D>().velocity = new Vector2(0, 0);
+            cloneSnow.transform.position = new Vector3(this.transform.position.x, this.transform.position.y + 1.4f, this.transform.position.z);
+        }
     }
 
     //ここからはセッターゲッター類
-    public void ChargeMode_Setter(bool Setter)
-    {
-        Input_AttackButton = Setter;
-    }
-
-    public void movedirection_Setter(int Setter)
-    {
-        //０…停止
-        //１…右
-        //２…左
-        if (Setter == 0)
-        {
-            movedirection = Move_dir.Stop;
-        }
-        if (Setter == 1)
-        {
-            movedirection = Move_dir.Right;
-        }
-        if (Setter == 2)
-        {
-            movedirection = Move_dir.Left;
-        }
-    }
-
+    
     public void PlayerDamageProcess(bool Setter)
     {
         //雪玉精製を中断させる
@@ -365,6 +323,7 @@ public class PlayerYukidamaManager : MonoBehaviour
         charge = 0;
 
         //もしも既に雪玉が生成されていたら、強制で雪玉を発射させる
+        var cloneSnow = GameObject.FindWithTag("SnowBall");
         if (cloneSnow)
         {
             //雪玉が存在していたら実行
@@ -406,5 +365,17 @@ public class PlayerYukidamaManager : MonoBehaviour
         {
             PAM.AudioPlayerOnplayOneShot(AC);
         }
+    }
+
+    private void OnTriggerEnter2D(Collider2D col)//ジャンプ可能かどうかの判定
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+        if (LayerName == "floor" || LayerName == "SnowBallOnride") spin_counter = 0;
+    }
+
+    private void OnTriggerExit2D(Collider2D col)//ジャンプ可能な状態を解除する判定
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+        //if (LayerName == "floor" || LayerName == "SnowBallOnride") 
     }
 }

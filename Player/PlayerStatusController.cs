@@ -58,74 +58,36 @@ public class PlayerStatusController : MonoBehaviour
         //やっぱりキーボード入力に関してはこんがらがるから
         //別のスクリプトからの入力でオナシャス
 
+        /*
         switch (movedirection)
         {
             case Move_dir.Left:
-                anim.SetFloat("Run", Mathf.Abs(-3));
-                /*
-                t += Time.deltaTime * 10;
-                speed = 7 - (3 - t);
-                if (speed > 7f)
-                {
-                    speed = 7;
-                }
 
-                left = true;
-                right = false;
-                canSlip = true;
-                rbody.velocity = new Vector2(-speed, rbody.velocity.y);
-                */
+                anim.SetFloat("Run", Mathf.Abs(-3));
+
                 left = true;
                 right = false;
                 if (jump_ok) rbody.AddForce(new Vector2(-100, 0));
                 else rbody.AddForce(new Vector2(-60, 0));
                 if (rbody.velocity.x < -7f) rbody.velocity = new Vector2(-7, rbody.velocity.y);
-                //if (rbody.velocity.x < -4f && !jump_ok) rbody.velocity = new Vector2(-5, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = true;
                 break;
             case Move_dir.Right:
                 anim.SetFloat("Run", Mathf.Abs(3));
-                /*
-                t += Time.deltaTime * 10;
-                speed = 7 - (3 - t);
-                if (speed > 7f)
-                {
-                    speed = 7;
-                }
-
-                right = true;
-                left = false;
-                canSlip = true;
-                rbody.velocity = new Vector2(speed, rbody.velocity.y);
-                */
                 right = true;
                 left = false;
                 if(jump_ok)rbody.AddForce(new Vector2(100, 0));
                 else rbody.AddForce(new Vector2(60, 0));
                 if (rbody.velocity.x > 7f) rbody.velocity = new Vector2(7, rbody.velocity.y);
-                //if (rbody.velocity.x > 4f && !jump_ok) rbody.velocity = new Vector2(5, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = false;
                 break;
             case Move_dir.Stop:
 
                 anim.SetFloat("Run", Mathf.Abs(0));
-                /*
-                t = 0;
-                speed = 0;
-                if (canSlip)
-                {
-                    rbody.velocity = new Vector2(0, rbody.velocity.y);
-                    canSlip = false;
-                }
-                else
-                {
-                    rbody.velocity = new Vector2(rbody.velocity.x, rbody.velocity.y);
-                }
-                */
                 break;
         }//移動に関するプログラム
 
-       
+        */
 
         //ここからアニメーション関連
         anim.SetBool("Standing", jump_ok ||PYM.OnSnowballGetter() );
@@ -145,16 +107,16 @@ public class PlayerStatusController : MonoBehaviour
             level = Mathf.Abs(Mathf.Sin(Time.time * levelspeed));//無敵が発動すると点滅を開始
             Sp.color = new Color(1f, 1f, 1f, level);
         }
-
+        /*
         if(rbody.velocity.y <= -12)
         {
             rbody.velocity = new Vector2(rbody.velocity.x,-12);
         }
+        */
     }
 
     public void Jumping()//入力を受け付けるとジャンプする
     {
-        //if (PYM.OnSnowballGetter()||PYM.AlwaysSnowGetter()) PYM.YukidamaJump(false);
         rbody.velocity = new Vector2(rbody.velocity.x, 12);
         jump_ok = false;
         PlayOneShotAudio(JumpSE);
