@@ -22,6 +22,7 @@ public class WaterPallarel : MonoBehaviour
     LineRenderer Body;
 
     //Our physics arrays
+    Vector3[] Vertices;
     NativeArray<float> xpositions;
     NativeArray<float> ypositions;
     NativeArray<float> velocities;
@@ -33,7 +34,7 @@ public class WaterPallarel : MonoBehaviour
     //Our meshes and colliders
     GameObject[] meshobjects;
     GameObject[] colliders;
-    Mesh[] meshes;
+    Mesh meshes;
 
     //Our particle system
     public GameObject splash;
@@ -82,9 +83,9 @@ public class WaterPallarel : MonoBehaviour
 
         //Calculating the number of edges and nodes we have
         //edgecountは
-        edgecount = 10;//設定する頂点の数。重くなりすぎるとやばいので２０で固定。
+        edgecount = 20;//設定する頂点の数。重くなりすぎるとやばいので２０で固定。
         nodecount = edgecount + 1;//波に適用される実際の頂点（節目、節合点）。きちんと設定しなければ
-        Debug.Log("eddgecount = " + edgecount);
+        Debug.Log("edgecount = " + edgecount);
         Debug.Log("nodecount =" + nodecount);
 
         //Add our line renderer and set it up:
@@ -116,7 +117,6 @@ public class WaterPallarel : MonoBehaviour
 
         //Declare our mesh arrays
         meshobjects = new GameObject[edgecount];
-        meshes = new Mesh[edgecount];
         colliders = new GameObject[edgecount];
 
         //インスペクター内部で設定した
@@ -139,45 +139,75 @@ public class WaterPallarel : MonoBehaviour
         }
 
         //Setting the meshes now:
-        for (int i = 0; i < nodecount -1; i++)
+
+        //Make the mesh
+        meshes = new Mesh();
+
+        //Create the corners of the mesh
+
+        Vertices = new Vector3[(nodecount * 2)];
+        Vector2[] UVs = new Vector2[nodecount * 2];
+        for (int i = 0; i < nodecount; i++)
         {
-            //Make the mesh
-            meshes[i] = new Mesh();
+            float r = Left + (Width * i) / edgecount;
+            Vertices[i * 2] = new Vector3(xpositions[i], ypositions[i], z);//上辺の頂点、左上
+            Vertices[i * 2 + 1] = new Vector3(xpositions[i], bottom, z);//下辺の頂点、左下
+            UVs[i * 2] = new Vector2(r, 1f);
+            UVs[i * 2 + 1] = new Vector2(r, 0f);
+            /*
+            Vertices[i] = new Vector3(xpositions[i], ypositions[i], z);//上辺の頂点、左上
+            Vertices[i + 1] = new Vector3(xpositions[i], bottom, z);//下辺の頂点、左下
+            Vertices[i + 2] = new Vector3(xpositions[i + 1], ypositions[i + 1], z);//上辺の頂点、右上
+            Vertices[i + 3] = new Vector3(xpositions[i + 1], bottom, z);//下辺の頂点、右下
+            */
+        }
 
-            //Create the corners of the mesh
-            Vector3[] Vertices = new Vector3[4];
-            Vertices[0] = new Vector3(xpositions[i], ypositions[i], z);//上辺の頂点、左上
-            Vertices[1] = new Vector3(xpositions[i], bottom, z);//下辺の頂点、左下
-            Vertices[2] = new Vector3(xpositions[i + 1], ypositions[i + 1], z);//上辺の頂点、右上
-            Vertices[3] = new Vector3(xpositions[i + 1], bottom, z);//下辺の頂点、右下
-
+       
+        for (int i = 0; i < nodecount - 1; i+=2)
+        {
             //Set the UVs of the texture
-            Vector2[] UVs = new Vector2[4];
-            UVs[0] = new Vector2(0, 1);
-            
-            UVs[1] = new Vector2(0, 0);
-            UVs[2] = new Vector2(1, 1);
-            UVs[3] = new Vector2(1, 0);
 
-            //Set where the triangles should be.
-            int[] tris = new int[6] { 0, 1, 3, 3, 2, 0 };
+            /*
+            UVs[i] = new Vector2(0, i / nodecount);
+            UVs[i + 1] = new Vector2(0, 0);
+            UVs[i + 2] = new Vector2(i / nodecount, i / nodecount);
+            UVs[i + 3] = new Vector2(i / nodecount, 0);
+            */
+        }
 
-            //Add all this data to the mesh.
-            meshes[i].vertices = Vertices;
-            meshes[i].uv = UVs;
-            meshes[i].triangles = tris;
 
+        int[] tris = new int[3 * 2 * (nodecount - 1)];
+        //Set where the triangles should be.
+        for (int i = 0; i < nodecount - 1; i++)
+        {
+            tris[i * 6 + 0] = i * 2;
+            tris[i * 6 + 1] = i * 2 + 1;
+            tris[i * 6 + 2] = i * 2 + 2;
+            tris[i * 6 + 3] = i * 2 + 2;
+            tris[i * 6 + 4] = i * 2 + 3;
+            tris[i * 6 + 5] = i * 2 + 1;
+        }
+
+
+
+        //Add all this data to the mesh.
+        meshes.vertices = Vertices;
+            meshes.uv = UVs;
+            meshes.triangles = tris;
+
+        for (int i = 0; i < nodecount - 1; i++)
+        {
             //Create a holder for the mesh, set it to be the manager's child
-            meshobjects[i] = Instantiate(watermesh, Vector3.zero, Quaternion.identity) as GameObject;
-            meshobjects[i].GetComponent<MeshFilter>().mesh = meshes[i];
+            meshobjects[i] = Instantiate(watermesh, Vector3.zero, Quaternion.identity);
+            meshobjects[i].GetComponent<MeshFilter>().mesh = meshes;
             meshobjects[i].transform.parent = transform;
 
-            
-
         }
+
         
         
-        for (int i = 0; i < nodecount - 1; i +=3)
+        
+        for (int i = 0; i < nodecount - 1 ; i+=2)
         {
             //Create our colliders, set them be our child
             colliders[i] = new GameObject();
@@ -186,8 +216,8 @@ public class WaterPallarel : MonoBehaviour
             colliders[i].transform.parent = transform;
 
             //Set the position and scale to the correct dimensions
-            colliders[i].transform.position = new Vector3(Left + Width * (i + 0.5f) / nodecount, Top - 0.5f, 0);
-            colliders[i].transform.localScale = new Vector3(Width / nodecount, 1, 1);
+            colliders[i].transform.position = new Vector3(Left + Width * (i + 0.5f) / nodecount * 2, Top - 0.5f, 0);
+            colliders[i].transform.localScale = new Vector3(Width / nodecount * 2, 1, 1);
 
             //Add a WaterDetector and make sure they're triggers
             colliders[i].GetComponent<BoxCollider2D>().isTrigger = true;
@@ -224,9 +254,11 @@ public class WaterPallarel : MonoBehaviour
 
         _jobHandle.Complete();
 
+        Debug.Log("ypositions = " + ypositions.Length);
+
         for (int i = 0; i < nodecount; i++)
         {
-            ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += (nodeWaver[i] / 600);
+            ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += (nodeWaver[i] / 500);
         }
         nodeWaver.Dispose();
 
@@ -400,40 +432,51 @@ public class WaterPallarel : MonoBehaviour
     struct UpdateMeshesParallel : IJobParallelFor
     {
         public NativeArray<Vector3> Vertices;
+        public float bottom;
         [ReadOnly] public NativeArray<float> xpositions;
         [ReadOnly] public NativeArray<float> ypositions;
 
         public void Execute(int i)
         {
-            if (i % 2 != 0) return;
-            Vertices[i] = new Vector3(xpositions[i % 4 == 0? i : i + 1], ypositions[i % 4 == 0 ? i : i + 1], z);
+            if (i % 2 == 0) Vertices[i] = new Vector3(xpositions[i], ypositions[i], z);
+            else Vertices[i] = new Vector3(xpositions[i - 1], bottom, z);
+            //Vertices[i] = new Vector3(xpositions[i % 4 == 0? i : i + 1], ypositions[i % 4 == 0 ? i : i + 1], z);
         }
     }
 
     void UpdateMeshes()
     {
-        NativeArray<Vector3> Vertices = new NativeArray<Vector3>(meshes.Length,Allocator.TempJob);
+        /*
+        NativeArray<Vector3> Vertices = new NativeArray<Vector3>(nodecount * 2, Allocator.TempJob);
         UpdateMeshesParallel UMP = new UpdateMeshesParallel
         {
             Vertices = Vertices,
+            bottom = bottom,
             xpositions = xpositions,
             ypositions = xpositions,
         };
+        _jobHandle = UMP.Schedule(Vertices.Length, 0);
 
-        meshes[0].vertices = Vertices.ToArray();
+        JobHandle.ScheduleBatchedJobs();
 
-        /*
-        for (int i = 0; i < meshes.Length; i++)
-        {
-            Vector3[] Vertices = new Vector3[4];
-            Vertices[0] = new Vector3(xpositions[i], ypositions[i], z);
-            Vertices[1] = new Vector3(xpositions[i], bottom, z);
-            Vertices[2] = new Vector3(xpositions[i + 1], ypositions[i + 1], z);
-            Vertices[3] = new Vector3(xpositions[i + 1], bottom, z);
+        _jobHandle.Complete();
 
-            meshes[i].vertices = Vertices;
-        }
+        meshes.vertices = Vertices.ToArray();
+
+        Vertices.Dispose();
         */
+
+        
+        
+        for (int i = 0; i < nodecount; i++)
+        {
+            
+            Vertices[i*2] = new Vector3(xpositions[i], ypositions[i], z);
+            
+        }
+        
+        meshes.vertices = Vertices;
+        
     }
 
     public void Splash(float xpos, float velocity_x, float velocity)
