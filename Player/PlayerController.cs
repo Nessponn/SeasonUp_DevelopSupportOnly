@@ -25,6 +25,8 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
 
     private Animator anim;
 
+    [SerializeField]private float PlayerSpeed = 5;
+
     public AudioClip StepSE;//足音
     public AudioClip JumpSE;//ジャンプ音
     void Start()
@@ -88,7 +90,7 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
                 if (FloorTaken) rbody.AddForce(new Vector2(-100, 0));
                 else rbody.AddForce(new Vector2(-60, 0));
 
-                if (rbody.velocity.x < -5f) rbody.velocity = new Vector2(-5, rbody.velocity.y);
+                if (rbody.velocity.x < -PlayerSpeed) rbody.velocity = new Vector2(-PlayerSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = true;
                 break;
             case Move_Dir.Right:
@@ -98,7 +100,7 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
                 if (FloorTaken) rbody.AddForce(new Vector2(100, 0));
                 else rbody.AddForce(new Vector2(60, 0));
 
-                if (rbody.velocity.x > 5f) rbody.velocity = new Vector2(5, rbody.velocity.y);
+                if (rbody.velocity.x > PlayerSpeed) rbody.velocity = new Vector2(PlayerSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = false;
                 break;
             case Move_Dir.Stop:
@@ -130,14 +132,23 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
         movedir = Move_Dir.Left;
 
         var PYM = GetComponent<PlayerYukidamaManager>();
-        if (PYM != null) PYM.ChengeVector_Left();
+        if (PYM != null)
+        {
+            PYM.ChengeVector_Left();
+            PYM.OnSnowballSetter();
+        }
     }
     public void Fuyuka_Right()//右に移動する「状態にする」
     {
         movedir = Move_Dir.Right;
 
         var PYM = GetComponent<PlayerYukidamaManager>();
-        if (PYM != null) PYM.ChengeVector_Right();
+        if (PYM != null) 
+        {
+            PYM.ChengeVector_Right();
+            PYM.OnSnowballSetter();
+        }
+        
     }
     public void Fuyuka_Stop()//止まっている「状態にする」
     {
@@ -162,6 +173,9 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
     {
         JumpPressed = true;
         Fuyuka_Jump();
+
+        var PYM = GetComponent<PlayerYukidamaManager>();
+        if (PYM != null) PYM.OnSnowballSetter();
     }
     public void FuyukaJumpButton_Up()
     {
@@ -216,13 +230,13 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
     private void OnTriggerEnter2D(Collider2D col)//ジャンプ可能かどうかの判定
     {
         string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "floor" || LayerName == "SnowBallOnride") FloorTaken = true;
+        if (LayerName == "floor" || LayerName == "Snow") FloorTaken = true;
     }
 
     private void OnTriggerExit2D(Collider2D col)//ジャンプ可能な状態を解除する判定
     {
         string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "floor" || LayerName == "SnowBallOnride") FloorTaken = false;
+        if (LayerName == "floor" || LayerName == "Snow") FloorTaken = false;
     }
 
     public bool FloorTakenGetter()

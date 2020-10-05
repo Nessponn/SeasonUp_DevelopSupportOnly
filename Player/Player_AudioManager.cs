@@ -13,7 +13,7 @@ public class Player_AudioManager : MonoBehaviour
 
     public void AudioPlayer(AudioClip AC)//各スクリプトに埋め込まれたオーディオファイルをここに代入して鳴らす
     {
-        Debug.Log("なってるよ");
+        //Debug.Log("なってるよ");
         AS.clip = AC;
         AS.Play();
     }

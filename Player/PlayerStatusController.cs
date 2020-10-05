@@ -90,7 +90,7 @@ public class PlayerStatusController : MonoBehaviour
         */
 
         //ここからアニメーション関連
-        anim.SetBool("Standing", jump_ok ||PYM.OnSnowballGetter() );
+        //anim.SetBool("Standing", jump_ok ||PYM.OnSnowballGetter() );
 
         if (rbody.velocity.y >= 0f && !jump_ok)//上昇中の処理
         {
