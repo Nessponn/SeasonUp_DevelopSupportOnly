@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 using UnityEngine.Profiling;
 using Unity.Burst;
 using UnityEngine.Jobs;
@@ -13,14 +14,16 @@ public class WaterPallarel : MonoBehaviour
     //可変数
 
     [SerializeField] public bool WaveSetting;
-    public float Width;
+    public float Width = 15;
     public float Bottom;
-    public float WavePower = 1;
-    public float WaveSpeed = 5;
-    public float SplashPower = 2.5f;
+ 　 public float WavePower;
+    public float WaveSpeed;
+    public float SplashPower;
 
     //拡張機能
-    [SerializeField] private bool Waver;//常に波を打つか
+    [SerializeField] public bool ExpandSetting;
+
+    [SerializeField] public bool Waver;//常に波を打つか
 
     //物理演算の結果を書き込み、読み込みを行う
     private NativeArray<Vector3> Vertices;
@@ -87,15 +90,13 @@ public class WaterPallarel : MonoBehaviour
         //もとの高さに戻るように基準を保存
         baseheight = this.transform.position.y;
 
-        //For each node, set the line renderer and our physics arrays
+        //ビルド時に波の高さの基準をここで設定
         for (int i = 0; i < nodecount; i++)
         {
             ypositions[i] = this.transform.position.y;
             xpositions[i] = this.transform.position.x + (Width * i) / edgecount;//Leftに設定された値を基準にwidthで指定した広さまで頂点を展開する
-
             //上記のposition関連の処理はあくまで値を決めただけで、「座標ではない」
             //座標の取り決めはmeshを生成するときに用いる
-
             accelerations[i] = 0;
             velocities[i] = 0;
         }
@@ -128,8 +129,6 @@ public class WaterPallarel : MonoBehaviour
             tris[i * 6 + 5] = i * 2 + 1;
         }
 
-
-
         //上記までの生成結果をMeshに反映
             meshes.vertices = Vertices.ToArray();
             meshes.uv = UVs;
@@ -143,9 +142,6 @@ public class WaterPallarel : MonoBehaviour
             meshobjects[i].transform.parent = transform;
 
         }
-
-        
-        
         
         for (int i = 0; i < nodecount - 1 ; i++)
         {
@@ -165,7 +161,16 @@ public class WaterPallarel : MonoBehaviour
         }
         
     }
+    void Update()
+    {
+        if (Waver) AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
 
+        nodeUpdate();//次はnodeを更新する
+
+        //バッファ更新地点
+        UpdateMeshes();
+
+    }
 
     private float ft = 0;//波を常時揺らしたいときにid
     void AlwaysWaver()//拡張機能。常に波を揺らす
@@ -181,6 +186,11 @@ public class WaterPallarel : MonoBehaviour
 
         JobHandle.ScheduleBatchedJobs();
 
+        //JobHandle.ScheduleBatchedJobs();とComplete()の間に処理を挟むと
+        //その分の処理がJobの管理下のスレッドで処理が進むことで並列処理の恩恵を多く受けられる「らしい」。
+        //素人だからか、Profiler上で見てもその実感が分からない…
+        //が、とりあえず効果はあると信じてこういうわけわからん視認性の悪い書き方してる
+
         WavePallarel Wave = new WavePallarel()
         {
             xpositions = xpositions,
@@ -194,11 +204,12 @@ public class WaterPallarel : MonoBehaviour
 
         _jobHandle.Complete();
 
-        //Debug.Log("ypositions = " + ypositions.Length);
-
-        for (int i = 0; i < nodecount; i++)
+        if (Waver)
         {
-            ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += (nodeWaver[i] / 500);
+            for (int i = 0; i < nodecount; i++)
+            {
+                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += (nodeWaver[i] / 500);
+            }
         }
         nodeWaver.Dispose();
 
@@ -209,36 +220,8 @@ public class WaterPallarel : MonoBehaviour
         _jobHandle.Complete();
     }
 
-    void WavingBuffer()
-    {
-        
-    }//オブジェクトから引き渡された速度をもとに波をゆらし、伝番させる
-
     void nodeUpdate()
     {
-
-        
-    }//ノードを更新させ、波の粗い高低差を自然に直す
-    
-    // Update is called once per frame
-    void Update()
-    {
-        if(Waver) AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
-       
-        
-        //WavingBuffer();//波のバッファごとにくわえられた速度をもとに波の減衰、伝番処理を行う
-        
-        //jobの実行（繰り返す回数,処理分割回数）
-        
-        //LineRendererの座標更新（LineRendererはIJobPallarelでは使えない）
-        //for (int i = 0; i < xpositions.Length; i++)
-        //{
-            //Body.SetPosition(i, new Vector3(xpositions[i], ypositions[i], z));
-       // }
-
-
-        // nodeUpdate();//次はnodeを更新する
-
         NativeArray<float> wlb1 = new NativeArray<float>(xpositions.Length, Allocator.TempJob);
         NativeArray<float> wrb1 = new NativeArray<float>(xpositions.Length, Allocator.TempJob);
 
@@ -273,10 +256,9 @@ public class WaterPallarel : MonoBehaviour
         wlb1.Dispose();
         wrb1.Dispose();
 
-        //バッファ更新地点
-        UpdateMeshes();
-
-    }
+    }//ノードを更新させ、波の粗い高低差を自然に直す
+    
+   
     [BurstCompile]
     struct WavePallarel : IJobParallelFor
     {
@@ -293,7 +275,6 @@ public class WaterPallarel : MonoBehaviour
             accelerations[i] = -force;//a = -(k * x + vd)
             ypositions[i] += velocities[i];
 
-            //if (Mathf.Abs(ypositions[i]) <= 0.01f) ypositions[i] = 0;//数値の処理をミリ単位で続行するのは重くなるので０に収束させる
             velocities[i] += accelerations[i];
         }
     }
@@ -308,7 +289,6 @@ public class WaterPallarel : MonoBehaviour
                 //Parallelの中だと！Unity乱数が！使えましぇ――ン！！！！！！
                 //擬似乱数
                 ft += (i % 11 == 0 ? 0.0013f : i % 9 == 0 ? 0.015776f : i % 7 == 0 ? 0.00672f : i % 5 == 0 ? 0.00379f : i % 3 == 0 ? 0.0091324f : i % 2 == 0 ? 0.0131f : 0.01f);
-                //nodeWaver[i] = ypositions[i] + (Mathf.Sin(Mathf.Cos(ft) * 7 + i / 2) / 7 + Mathf.Sin(Mathf.Cos(ft / 2) * 7 + i / 2) / 7) / 2;
                 if (i % 7 == 0) nodeWaver[i] += (Mathf.Atan(Mathf.Atan(ft) * Mathf.Sin(ft / 3.4f) * 3 + i / 2) / 9 + Mathf.Atan(Mathf.Sin(ft / 2.7f) * 3 + i / 2) / 7) / 15;
                 else if (i % 2 == 0) nodeWaver[i] -= (Mathf.Sin(Mathf.Atan(ft) * 5 + i / 2) + Mathf.Sin(Mathf.Sin(ft / 2) * 7 + i / 2) / 7);
                 else if (i % 9 == 0) nodeWaver[i] -= Mathf.Sin(ft) / 10;
@@ -377,44 +357,18 @@ public class WaterPallarel : MonoBehaviour
         JobHandle.ScheduleBatchedJobs();
 
         _jobHandle.Complete();
-
-        
-
-        
-        
-
-        
-        /*
-        for (int i = 0; i < nodecount; i++)
-        {
-            Vertices[i*2] = new Vector3(xpositions[i], ypositions[i], z);
-        }
-        
-        meshes.vertices = Vertices;
-        */
     }
 
     public void Splash(float xpos, float velocity_x, float velocity)
     {
-        //波から法線を取り、その角度に向けて飛ばせば行ける（JobSystem使用）
-
-
-        //If the position is within the bounds of the water:
+        
         if (xpos >= xpositions[0] && xpos <= xpositions[xpositions.Length - 1])
         {
-            //Offset the x position to be the distance from the left side
             //波を揺らす座標を決める
-            //Debug.Log("xpos = " + xpos);
-            //Debug.Log("xpositions[0] = " + xpositions[0]);
             xpos -= xpositions[0];
-            //Debug.Log("xpos after= " + xpos);
-
-            //Find which spring we're touching
             //与えられた情報から計算されたバッファ情報からどの頂点に触れられたかを計算する
             int index = Mathf.RoundToInt((xpositions.Length - 1) * (xpos / (xpositions[xpositions.Length - 1] - xpositions[0])));
-            //Debug.Log("index= " + index);
-
-            //Add the velocity of the falling object to the spring
+            
             //最終的な波の緩急処理はここ
             //触れたバッファーの高度をオブジェクトのvelocityの分だけ下げる
             velocities[index] += velocity * WavePower;
@@ -424,43 +378,30 @@ public class WaterPallarel : MonoBehaviour
             {
                 velocities[index + 1 > xpositions.Length ? index + 1 : index] += velocity_x * WavePower;
                 velocities[index - 1 < 0 ? index : index - 1] -= velocity_x * 0.2f * WavePower;
-                //Debug.Log("右向き");
             }
             else
             {
                 velocities[index + 1 > xpositions.Length ? index + 1 : index] += velocity_x * 0.2f * WavePower;
                 velocities[index - 1 < 0 ? index : index - 1] -= velocity_x * WavePower;
-                //Debug.Log("左向き");
             }
 
 
             //以下、パーティクルの処理
-            //Set the lifetime of the particle system.
             float lifetime = 0.93f + Mathf.Abs(velocity) * 0.07f;
 
-            //Set the splash to be between two values in Shuriken by setting it twice.
             //速度によって生成する水しぶきの密度を変更
             int splashCount = (int)Mathf.Abs(velocity_x) + (int)Mathf.Abs(velocity);
 
             if (velocity <= -7) velocity = -7;
-            //if (velocity <= -20) velocity = -20;
-            
             splash.GetComponent<ParticleSystem>().startSpeed = ((Mathf.Abs(velocity) * SplashPower ) * 2 )  * Mathf.Pow(Mathf.Abs(velocity) + 1, Mathf.Abs(velocity)  + 1) + 1;
-            //splash.GetComponent<ParticleSystem>().startSpeed = (Mathf.Abs(velocity) * 2) + 2 * Mathf.Pow(Mathf.Abs(velocity) + 1, Mathf.Abs(velocity) + 1);
             splash.GetComponent<ParticleSystem>().startLifetime = lifetime;
 
             if (splash.GetComponent<ParticleSystem>().startSpeed > 10) splash.GetComponent<ParticleSystem>().startSpeed = 10;
 
-            //Debug.Log("velocity = "+velocity);
-            //Set the correct position of the particle system.
             Vector3 position = new Vector3(xpositions[index], ypositions[index] - 0.35f, 5);
 
-            //This line aims the splash towards the middle. Only use for small bodies of water:
             Quaternion rotation = Quaternion.LookRotation(new Vector3(xpositions[Mathf.FloorToInt(xpositions.Length / 2)], baseheight + 8, 5) - position);
 
-            //Create the splash and tell it to destroy itself.
-            //GameObject splish = Instantiate(splash, position, rotation) as GameObject;
-            //Destroy(splish, lifetime + 0.3f);
             for(int i = 0; i < splashCount; i++) Destroy(Instantiate(splash, position, rotation), lifetime + 0.3f);
         }
     }
@@ -473,10 +414,6 @@ public class WaterPallarel : MonoBehaviour
         accelerations.Dispose();
         Vertices.Dispose();
     }
-
-
-
-
-
-
 }
+
+
