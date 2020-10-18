@@ -8,22 +8,26 @@ using UnityEngine.Jobs;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel;
 using Unity.Collections;
+using UnityEditor.UIElements;
+
 public class WaterPallarel : MonoBehaviour
 {
-
     //可変数
-
     [SerializeField] public bool WaveSetting;
     public float Width = 15;
     public float Bottom;
  　 public float WavePower;
-    public float WaveSpeed;
+    public int WaveSpeed;
     public float SplashPower;
 
     //拡張機能
     [SerializeField] public bool ExpandSetting;
 
     [SerializeField] public bool Waver;//常に波を打つか
+    public bool NotWaver;
+    public bool NamerakaWaver;
+    public bool GizaGizaWaver;
+    [SerializeField] public float WaverPower;//波打つパワー
 
     //物理演算の結果を書き込み、読み込みを行う
     private NativeArray<Vector3> Vertices;
@@ -75,7 +79,7 @@ public class WaterPallarel : MonoBehaviour
         gameObject.GetComponent<BoxCollider2D>().size = new Vector2(Width, this.transform.position.y - Bottom);
         gameObject.GetComponent<BoxCollider2D>().isTrigger = true;
 
-        edgecount = Mathf.RoundToInt(Width) * 5;//設定する頂点の数。
+        edgecount = Mathf.RoundToInt(Width) * WaveSpeed;//設定する頂点の数。
         nodecount = edgecount + 1;//波に適用される実際の頂点（節目、節合点）。きちんと設定しなければぐちゃぐちゃになる
 
         xpositions = new NativeArray<float>(nodecount, Allocator.Persistent);
@@ -136,7 +140,7 @@ public class WaterPallarel : MonoBehaviour
 
         for (int i = 0; i < nodecount - 1; i++)
         {
-            //メッシュを波の四角の数だけ張り付ける。
+            //波に沿ってメッシュを張り付ける。
             meshobjects[i] = Instantiate(watermesh, Vector3.zero, Quaternion.identity);
             meshobjects[i].GetComponent<MeshFilter>().mesh = meshes;
             meshobjects[i].transform.parent = transform;
@@ -163,15 +167,29 @@ public class WaterPallarel : MonoBehaviour
     }
     void Update()
     {
-        if (Waver) AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
+         AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
 
         nodeUpdate();//次はnodeを更新する
 
         //バッファ更新地点
         UpdateMeshes();
 
+        
+
+        if (NamerakaWaver)
+        {
+            StartCoroutine(WaverAlways());
+        }
+        else if (GizaGizaWaver)
+        {
+            for (int i = 0; i < nodecount; i++)
+            {
+                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += 0.01f;
+            }
+        }
     }
 
+    private int Num = 0;
     private float ft = 0;//波を常時揺らしたいときにid
     void AlwaysWaver()//拡張機能。常に波を揺らす
     {
@@ -204,13 +222,7 @@ public class WaterPallarel : MonoBehaviour
 
         _jobHandle.Complete();
 
-        if (Waver)
-        {
-            for (int i = 0; i < nodecount; i++)
-            {
-                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += (nodeWaver[i] / 500);
-            }
-        }
+        
         nodeWaver.Dispose();
 
         _jobHandle = Wave.Schedule(xpositions.Length, 5);
@@ -219,6 +231,17 @@ public class WaterPallarel : MonoBehaviour
 
         _jobHandle.Complete();
     }
+
+    private IEnumerator WaverAlways()
+    {
+        for(int i = 0; i < nodecount; i++)
+        {
+            ypositions[i] += 0.005f;
+            yield return new WaitForSeconds(0.005f);
+        }
+        if(NamerakaWaver) StartCoroutine(WaverAlways());
+    }
+
 
     void nodeUpdate()
     {
@@ -289,9 +312,9 @@ public class WaterPallarel : MonoBehaviour
                 //Parallelの中だと！Unity乱数が！使えましぇ――ン！！！！！！
                 //擬似乱数
                 ft += (i % 11 == 0 ? 0.0013f : i % 9 == 0 ? 0.015776f : i % 7 == 0 ? 0.00672f : i % 5 == 0 ? 0.00379f : i % 3 == 0 ? 0.0091324f : i % 2 == 0 ? 0.0131f : 0.01f);
-                if (i % 7 == 0) nodeWaver[i] += (Mathf.Atan(Mathf.Atan(ft) * Mathf.Sin(ft / 3.4f) * 3 + i / 2) / 9 + Mathf.Atan(Mathf.Sin(ft / 2.7f) * 3 + i / 2) / 7) / 15;
-                else if (i % 2 == 0) nodeWaver[i] -= (Mathf.Sin(Mathf.Atan(ft) * 5 + i / 2) + Mathf.Sin(Mathf.Sin(ft / 2) * 7 + i / 2) / 7);
-                else if (i % 9 == 0) nodeWaver[i] -= Mathf.Sin(ft) / 10;
+                if (i % 21 == 0) nodeWaver[i] -= (Mathf.Sin(Mathf.Atan(ft) * 5 + i / 2) + Mathf.Sin(Mathf.Sin(ft / 2) * 7 + i / 2) / 7);
+                else if (i % 17 == 0) nodeWaver[i] -= (Mathf.Sin(Mathf.Atan(ft) * 5 + i / 2) + Mathf.Sin(Mathf.Sin(ft / 2) * 7 + i / 2) / 7);
+                else if (i % 13 == 0) nodeWaver[i] -= Mathf.Sin(ft) / 10;
             }
         }
     }
@@ -337,6 +360,7 @@ public class WaterPallarel : MonoBehaviour
 
         public void Execute(int i)//ここでメッシュの更新を行う
         {
+            //普通のコードで行うと　ここが滅茶苦茶重い…ホントにマルチスレッド、いやJobSystemさまさまやで
             if (i % 2 == 0) Vertices[i] = new Vector3(xpositions[i/2], ypositions[i/2], z);
         }
     }
@@ -417,3 +441,44 @@ public class WaterPallarel : MonoBehaviour
 }
 
 
+[CustomEditor(typeof(WaterPallarel))]
+
+public class WavePallarelEditor : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        WaterPallarel WP = target as WaterPallarel;
+        WP.WaveSetting = EditorGUILayout.Foldout(WP.WaveSetting, "波の設定");
+        if (WP.WaveSetting)
+        {
+            WP.Width = EditorGUILayout.FloatField("横幅", WP.Width);
+            WP.Bottom = EditorGUILayout.FloatField("深さ", WP.Bottom);
+            WP.WavePower = EditorGUILayout.FloatField("波のパワー", WP.WavePower);
+            WP.WaveSpeed = EditorGUILayout.IntField("波のスピード（下げるほど早くなる）", WP.WaveSpeed);
+            WP.SplashPower = EditorGUILayout.FloatField("水しぶきの飛散力", WP.SplashPower);
+
+            WP.ExpandSetting = EditorGUILayout.Foldout(WP.ExpandSetting, "拡張機能");
+            if (WP.ExpandSetting)
+            {
+                //WP.Waver = EditorGUILayout.Toggle("常時波を揺らす", WP.Waver);
+                WP.Waver = EditorGUILayout.Foldout(WP.Waver, "常時波を揺らす");
+                if (WP.Waver)
+                {
+                    WP.NotWaver = EditorGUILayout.Toggle("揺らさない",!WP.NamerakaWaver && !WP.GizaGizaWaver);
+                    WP.NamerakaWaver = EditorGUILayout.Toggle("滑らかに揺らす", !WP.NotWaver && !WP.GizaGizaWaver);
+                    WP.GizaGizaWaver = EditorGUILayout.Toggle("ギザギザに揺らす", !WP.NamerakaWaver && !WP.NotWaver);
+                }
+                //揺らす強さも設定する
+            }
+        }
+
+        WP.OtherSetting = EditorGUILayout.Foldout(WP.OtherSetting, "その他の設定");
+        if (WP.OtherSetting)
+        {
+            WP.splash = EditorGUILayout.ObjectField("水しぶきのパーティクル", WP.splash, typeof(GameObject), true) as GameObject;
+            WP.mat = EditorGUILayout.ObjectField("テクスチャマテリアル", WP.mat, typeof(GameObject), true) as Material;
+            WP.watermesh = EditorGUILayout.ObjectField("テクスチャメッシュ", WP.watermesh, typeof(GameObject), true) as GameObject;
+        }
+        EditorUtility.SetDirty(target);//この処理を忘れると変数の変更が反映されない呪いに掛かる
+    }
+}
