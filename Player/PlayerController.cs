@@ -1,18 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
-public class PlayerController : MonoBehaviour,CameraChase, PlayerController_InterFace
+public class PlayerController : MonoBehaviour, PlayerController_InterFace
 {
     private Rigidbody2D rbody;
-
-    private Vector3 Camera_posX;//カメラのポジション。基本はｘ軸を動かす
-
-    private float L_limit;//左のスクロール限度
-    private float R_limit;//右のスクロール限度
-
     //プレイヤーの操作にかかわるトリガー部分。逆にこちらを付け消しする
-
 
     private bool JumpPressed = false;//ボタンが押されているかどうか。離陸している状態とはまた別。ボタンが押されている間は、連続でジャンプできるようにする。
     private bool FloorTaken = false;//接地しているかどうか。
@@ -37,6 +31,8 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
 
     void Update()
     {
+        Debug.DrawRay(new Vector2(this.transform.position.x, this.transform.position .y + 0.05f), new Vector2(0,-0.15f), Color.red);
+
         //ここにキーボード入力についての処理を書く
         if (Input.GetKey(KeyCode.LeftArrow))//移動
         {
@@ -75,9 +71,7 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
             FuyukaJumpButton_Up();
         }
         //カメラの位置の調節
-        Camera_Property = new Vector3(this.transform.position.x, Camera.main.transform.position.y, -10);
-
-        Camera.main.transform.position = Camera_Property;
+       
 
         //移動の実行処理
         switch (movedir)
@@ -171,6 +165,7 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
 
     public void FuyukaJumpButton_Down()
     {
+        Debug.Log("ジャンプ！");
         JumpPressed = true;
         Fuyuka_Jump();
 
@@ -189,6 +184,8 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
         var PYM = GetComponent<PlayerYukidamaManager>();
         if (PYM != null) PYM.ChargeMode_Setter(true);
     }
+
+    //ダメージを食らった時にもこのメソッドは発動する
     public void Fuyuka_Attack_False()
     {
         var PYM = GetComponent<PlayerYukidamaManager>();
@@ -199,17 +196,8 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
         }
     }
 
-    public Vector3 Camera_Property
-    {
-        get { return new Vector3(Camera_posX.x, Camera_posX.y, -110); }
+    
 
-        set { Camera_posX = value; }
-    }
-
-    public void Camera_Limit_Setter(float X_Limit, float Y_Limit)
-    {
-
-    }
 
     //このスクリプトが持つAudioClipを鳴らす
     private void PlayAudio(AudioClip AC)
@@ -227,21 +215,77 @@ public class PlayerController : MonoBehaviour,CameraChase, PlayerController_Inte
         }
     }
 
+    /*
+    private void OnCollisionEnter2D(Collision2D col)
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+        if (col.GetType() == typeof(TilemapCollider2D))
+        {
+
+            if ((LayerName == "floor" || LayerName == "Snow")) FloorTaken = true;
+        }
+
+    }
+
+    private void OnCollisionStay2D(Collision2D col)
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+        if (col.GetType() == typeof(TilemapCollider2D))
+        {
+
+            if ((LayerName == "floor" || LayerName == "Snow")) FloorTaken = true;
+        }
+    }
+
+
+    private void OnCollisionExit2D(Collision2D col)
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+        if (col.GetType() == typeof(BoxCollider2D))
+        {
+            var PYM = GetComponent<PlayerYukidamaManager>();
+            if ((LayerName == "floor" || LayerName == "Snow") && !PYM.OnSnowballGetter()) FloorTaken = true;
+        }
+    }
+    */
+    
     private void OnTriggerEnter2D(Collider2D col)//ジャンプ可能かどうかの判定
     {
         string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "floor" || LayerName == "Snow") FloorTaken = true;
+
+        //床コライダーにはBoxColliderとTilemapColliderがある
+        //床コライダーのうち、タイルマップコライダーに触れたら着地判定にする
+
+        if ((LayerName == "floor" || LayerName == "Snow")) FloorTaken = true;
+        
+    }
+
+    
+
+    private void OnTriggerStay2D(Collider2D col)
+    {
+        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
+
+        if ((LayerName == "floor" || LayerName == "Snow")) FloorTaken = true;
+        
     }
 
     private void OnTriggerExit2D(Collider2D col)//ジャンプ可能な状態を解除する判定
     {
         string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "floor" || LayerName == "Snow") FloorTaken = false;
+        var PYM = GetComponent<PlayerYukidamaManager>();
+        if ((LayerName == "floor" || LayerName == "Snow")&& !PYM.OnSnowballGetter()) FloorTaken = false;
     }
 
+    
     public bool FloorTakenGetter()
     {
         return FloorTaken;
+    }
+
+    public void FloorTakenSetter(bool setter)
+    {
+        FloorTaken = setter;
     }
 
     public void stepAudio()

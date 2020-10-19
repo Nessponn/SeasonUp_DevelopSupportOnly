@@ -3,367 +3,390 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Security.Cryptography;
 
-public class PlayerStatusController : MonoBehaviour
+public class PlayerStatusController : MonoBehaviour,DamagableObject
 {
-    //こちらのスクリプトは付け消しせず、PlayerControllerからの入力によって動作をする
-    //PlayerControllerの参照
-    private PlayerController PC;
-    private PlayerYukidamaManager PYM;
-    private Player_Audio PA;
-    private SCORE_MANAGER SM;
 
-    private enum Move_dir
+    [SerializeField] public bool ButtonfoldOut;//ボタン折り畳み表示の可否
+
+    [SerializeField] public GameObject BlueButton;
+    [SerializeField] public GameObject GreenButton;
+    [SerializeField] public GameObject YellowButton;
+    [SerializeField] public GameObject RedButton;
+
+    [SerializeField] public bool StatusfoldOut;//ライフの状態変更インスペクター折り畳み表示の可否
+
+    [SerializeField] public bool Life;
+    [SerializeField] public bool Blue = true;
+    [SerializeField] public bool Green;
+    [SerializeField] public bool Yellow;
+    [SerializeField] public bool Red;
+    [SerializeField] public bool NoLife;
+
+    [SerializeField] public bool ItemStatusfoldOut;
+
+    [SerializeField] public bool Nothing;
+    [SerializeField] public bool Flola;
+    [SerializeField] public bool IceCream;
+
+    //詳しいインスペクター内の記述は「PlayerStateEditor」に記載してあります。
+
+    private int LifeNum = 4;
+    private int Item_number;
+
+    //カメラの設定変数
+    private Vector3 Camera_posX;//カメラのポジション。基本はｘ軸を動かす
+
+    public float L_limit;//左のスクロール限度
+    public float R_limit;//右のスクロール限度
+    private float Lerping_Num;//スクロールするときの実際の値
+
+    [SerializeField] public  float DamageWatingTime;
+    private bool Damage = true;
+
+    public bool CameraLerping;//カメラの位置が移行しているときはプレイヤーの追跡をやめる
+
+    Animator anim;
+
+    Animator Sp1;
+    Animator Sp2;
+    Animator Sp3;
+    Animator Sp4;
+
+
+    private void Start()
     {
-        Left,Right,Stop
-    }
-    private Move_dir movedirection = Move_dir.Stop;//ゲッターセッターで内容を変える
-
-    private Animator anim;
-    private Rigidbody2D rbody;
-    private SpriteRenderer Sp;
-    //整数型
-    private int levelspeed = 0;
-
-    //浮動小数点型
-    private float speed = 0;
-    private float t = 0;
-    float level = 0;
-    //真偽型
-    private bool left = false;
-    private bool right = true;
-    private bool jump_ok = false;
-    private bool Damage_Standby = true;//これがfalseの時、ふゆかはダメージを受けない
-    private bool Damage_Transform = true;//境界線で移動している間(falseの時)は無敵になる。既存のDamage_Standbyを利用すると透明化が働いてしまう
-
-    //GameObject型
-
-    public LayerMask SnowBallLayer;//雪玉のこと
-
-    public AudioClip StepSE;//足音
-    public AudioClip JumpSE;
-    void Start()
-    {
-        PC = GetComponent<PlayerController>();
-        PYM = GetComponent<PlayerYukidamaManager>();
-        PA = GetComponent<Player_Audio>();
         anim = GetComponent<Animator>();
-        rbody = GetComponent<Rigidbody2D>();
-        Sp = GetComponent<SpriteRenderer>();
 
+        Sp1 = BlueButton.GetComponent<Animator>();
+        Sp2 = GreenButton.GetComponent<Animator>();
+        Sp3 = YellowButton.GetComponent<Animator>();
+        Sp4 = RedButton.GetComponent<Animator>();
     }
 
-    void Update()//ここは主にキーボード入力を受け付ける
+
+    private float AlphaLevelSpeed;
+    private void Update()
     {
-        //やっぱりキーボード入力に関してはこんがらがるから
-        //別のスクリプトからの入力でオナシャス
+        if (LifeNum < 0) LifeNum = 0;
 
-        /*
-        switch (movedirection)
+        if (LifeNum == 4)
         {
-            case Move_dir.Left:
+            Sp1.SetBool("Damage", false);
+            Sp2.SetBool("Damage", false);
+            Sp3.SetBool("Damage", false);
+            Sp4.SetBool("Damage", false);
+            Sp4.SetBool("Dangerous", false);
+        }
+        if (LifeNum == 3)
+        {
+            Sp1.SetBool("Damage", true);
+            Sp2.SetBool("Damage", false);
+            Sp3.SetBool("Damage", false);
+            Sp4.SetBool("Damage", false); 
+            Sp4.SetBool("Dangerous", false);
+        }
+        if (LifeNum == 2)
+        {
+            Sp1.SetBool("Damage", true);
+            Sp2.SetBool("Damage", true);
+            Sp3.SetBool("Damage", false);
+            Sp4.SetBool("Damage", false);
+            Sp4.SetBool("Dangerous", false);
+        }
+        if (LifeNum == 1)
+        {
+            Sp1.SetBool("Damage", true);
+            Sp2.SetBool("Damage", true);
+            Sp3.SetBool("Damage", true);
+            Sp4.SetBool("Damage", false);
+            Sp4.SetBool("Dangerous", true);
+        }
+        if (LifeNum == 0)
+        {
+            Sp1.SetBool("Damage", true);
+            Sp2.SetBool("Damage", true);
+            Sp3.SetBool("Damage", true);
+            Sp4.SetBool("Damage", true);
+        }
 
-                anim.SetFloat("Run", Mathf.Abs(-3));
+        if (!Damage)
+        {
+            gameObject.GetComponent<SpriteRenderer>().color =
+                new Color(1f, 1f, 1f, Mathf.Abs(Mathf.Sin(Time.time * AlphaLevelSpeed)));//無敵が発動すると点滅を開始);
 
-                left = true;
-                right = false;
-                if (jump_ok) rbody.AddForce(new Vector2(-100, 0));
-                else rbody.AddForce(new Vector2(-60, 0));
-                if (rbody.velocity.x < -7f) rbody.velocity = new Vector2(-7, rbody.velocity.y);
-                GetComponent<SpriteRenderer>().flipX = true;
-                break;
-            case Move_dir.Right:
-                anim.SetFloat("Run", Mathf.Abs(3));
-                right = true;
-                left = false;
-                if(jump_ok)rbody.AddForce(new Vector2(100, 0));
-                else rbody.AddForce(new Vector2(60, 0));
-                if (rbody.velocity.x > 7f) rbody.velocity = new Vector2(7, rbody.velocity.y);
-                GetComponent<SpriteRenderer>().flipX = false;
-                break;
-            case Move_dir.Stop:
+        }
+        else
+        {
+            gameObject.GetComponent<SpriteRenderer>().color =
+                new Color(1f, 1f, 1f, 1f);//無敵が発動すると点滅を開始
+        }
 
-                anim.SetFloat("Run", Mathf.Abs(0));
-                break;
-        }//移動に関するプログラム
+        Debug.Log("LerpingNum = " + Lerping_Num);
 
+        //y軸は変えない。絶対に。設計が乱れる。
+        //プレイヤーがステージチャンクを移動するときはプレイヤーの値を代入することをやめる
+
+    }
+    private void FixedUpdate()
+    {
+
+        if (!CameraLerping)
+        {
+            Vector3 pos = new Vector3(this.transform.position.x, Camera.main.transform.position.y, -110);
+
+            pos.x = L_limit >= pos.x ? pos.x = L_limit : pos.x;
+            pos.x = R_limit <= pos.x ? pos.x = R_limit : pos.x;
+
+            Camera.main.transform.position = pos;
+            //プレイヤーが画面外から出た時、一定速度でカメラが平行移動、次の場面へ
+
+            //Camera.main.transform.position = ;
+        }
+        /*
+        if (CameraLerping == true)
+        {
+            Debug.Log("現在カメラは止まっています");
+            CameraLerping = true;
+
+            Debug.Log("右から侵入");
+
+            for(int num =0;num < 100;num++)
+            {
+                Debug.Log("→Num進行中");
+                Camera.main.transform.position = new Vector3(Mathf.Lerp(R_Limit_L, L_Limit_R, Num / 100), Camera.main.transform.position.y, -110);
+                Num++;
+            }
+        }
         */
 
-        //ここからアニメーション関連
-        //anim.SetBool("Standing", jump_ok ||PYM.OnSnowballGetter() );
-
-        if (rbody.velocity.y >= 0f && !jump_ok)//上昇中の処理
-        {
-            anim.SetBool("Jumping", true);
-        }
-        if (rbody.velocity.y <= -1f && !jump_ok)//ジャンプの最大地点に到達したとき
-        {
-            anim.SetBool("Jumping", false);
-            jump_ok = false;
-        }
-
-        if (!Damage_Standby)
-        {
-            level = Mathf.Abs(Mathf.Sin(Time.time * levelspeed));//無敵が発動すると点滅を開始
-            Sp.color = new Color(1f, 1f, 1f, level);
-        }
-        /*
-        if(rbody.velocity.y <= -12)
-        {
-            rbody.velocity = new Vector2(rbody.velocity.x,-12);
-        }
-        */
+        Debug.Log("CameraLerping = "+ CameraLerping);
     }
 
-    public void Jumping()//入力を受け付けるとジャンプする
-    {
-        rbody.velocity = new Vector2(rbody.velocity.x, 12);
-        jump_ok = false;
-        PlayOneShotAudio(JumpSE);
-    }
-
-    public void movedirection_Setter(int Setter)
-    {
-        //０…停止
-        //１…右
-        //２…左
-        if(Setter == 0)
-        {
-            movedirection = Move_dir.Stop;
-        }
-        if (Setter == 1)
-        {
-            movedirection = Move_dir.Right;
-        }
-        if (Setter == 2)
-        {
-            movedirection = Move_dir.Left;
-        }
-    }
-
-    private void OnCollisionEnter2D(Collision2D col)//即死トラップとアイテム取得の判定はここで行う
-    {
-        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "DEATH")//針とかのスローアニメーションした方がいいやつ
-        {
-            anim.SetBool("Damage", true);
-            StartCoroutine(DEATH_Fuyuka_Immedia());
-        }
-        if(LayerName == "Sea")//水ポチャ
-        {
-            DEATH_Fuyuka_Sea();
-        }
-
-    }
-
-    private void OnTriggerEnter2D(Collider2D col)//敵に当たったかどうかの判定
-    {
-        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-
-
-        
-
-
-
-        //スピンアタック中でもない時に敵に突っ込んだ場合
-        if (LayerName == "Enemy_Collider(PlayercantTouch)" && Damage_Standby && !PYM.SpinAttackGetter() && Damage_Transform)
-        {
-            //プレイヤーの操作権を奪う
-            StartCoroutine(PlayerDamage());//プレイヤーの操作時間を一定時間奪い、ダメージ中に雪玉を溜めていた場合、溜めを中断させるプログラム
-            LifeDecrese();//ライフを一つ減らして
-            /*
-            if(TG.LM.LifeGetter() != 0)//喰らった後のライフが０でなければ
-            {
-                StartCoroutine(SpecialTime());//無敵時間を付与する
-            }
-            else//０だったら
-            {
-                PC.enabled = false; //操作権限を奪われて
-
-                StartCoroutine(DEATH_Fuyuka());//死ぬ
-            }
-            */
-
-            //プレイヤーをぶっ飛ばす
-            if (right == true)
-            {
-                rbody.velocity = (Vector3.left * 4 + Vector3.up * 7);
-            }
-            if (left == true)
-            {
-                rbody.velocity = (Vector3.right * 4 + Vector3.up * 7);
-            }
-
-        }
-        //スピンアタック中に敵に突っ込んだ場合
-        if(LayerName == "Enemy_Collider(PlayercantTouch)" && PYM.SpinAttackGetter())
-        {
-            //Debug.Log("スピンアターック！");
-        }
-
-        if (LayerName == "Boss" && Damage_Standby && !Damage_Transform)//スピンアタックで突っ込んでもダメージを受けてしまう
-        {
-
-        }
-
-
-        if (col.gameObject.tag == "Cookie")
-        {
-            //TG.LM.LifeHeal();
-            PA.ItemGet_Audio();
-            Destroy(col.gameObject);
-        }
-        if (col.gameObject.tag == "Key")
-        {
-            SM.KEY_Interface(true);
-            PA.ItemGet_Audio();
-            Destroy(col.gameObject);
-        }
-        if (col.gameObject.tag == "Jewel")
-        {
-            SM.Jewel.SetActive(true);
-            PA.ItemGet_Audio();
-            Destroy(col.gameObject);
-        }
-    }
-    void OnTriggerStay2D(Collider2D col)//ジャンプ可能かどうかの判定
-    {
-        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        if (LayerName == "floor" || LayerName == "SnowBallOnride") jump_ok = true;
-        //if (LayerName == "SnowBallOnride") PYM.YukidamaJump(true);
-    }
-
-    void OnTriggerExit2D(Collider2D col)//ジャンプ可能な状態を解除する判定
-    {
-        string LayerName = LayerMask.LayerToName(col.gameObject.layer);
-        
-        if (LayerName == "floor" || LayerName == "SnowBallOnride") jump_ok = false;
-        //if (LayerName == "SnowBallOnride") PYM.YukidamaJump(false);
-    }
-    public void JumpSetter(bool Setter)
-    {
-        jump_ok = Setter;
-    }
-    public bool JumpGetter()
-    {
-        return jump_ok;
-    }
-    public bool LeftGetter()
-    {
-        return left;
-    }
-    public bool RightGetter()
-    {
-        return right;
-    }
-
-    public void Damage_StandbySetter(bool Setter)
-    {
-        Damage_Transform = Setter;
-    }
-
-
-    private IEnumerator PlayerDamage()//プレイヤーの操作時間を奪う＆雪玉精製中断
-    {
-        PC.enabled = false;
-        PYM.PlayerDamageProcess(false);
-        anim.SetBool("Damage", true);
-
-        yield return new WaitForSeconds(0.5f);
-
-        anim.SetBool("Damage", false);
-        PC.enabled = true;
-    }
-    public IEnumerator PlayerControll(float SetTime)//こちらは画面移行などで一時的に操作だけを奪いたいときに
-    {
-        PC.enabled = false;
-        yield return new WaitForSeconds(SetTime);
-        PC.enabled = true;
-    }
-    private void LifeDecrese()//ライフを一つ減らす
-    {
-        PA.Damage_Audio();
-        //TG.LM.LifeDecreser();
-    }
-
-    private IEnumerator SpecialTime()//無敵時間を一定時間付与
-    {
-        Damage_Standby = false;
-        levelspeed = 10; //無敵が発動すると点滅を開始
-        yield return new WaitForSeconds(1f);
-        levelspeed = 20;//無敵が切れる直後は点滅が早くなる
-        yield return new WaitForSeconds(1f);
-        Damage_Standby = true;
-        Sp.color = new Color(1f, 1f, 1f, 1f);
-    }
 
     
 
-    //敵との接触で死んだ場合、少し画面を止めてから演出を開始する
-    public IEnumerator DEATH_Fuyuka()
+
+
+    public void ToggletoLifeNum()
     {
-        Time.timeScale = 0.1f;
-        yield return new WaitForSeconds(0.05f);
-        Time.timeScale = 1;
-        //Instantiate(TG.PlayerDEATH_Particle, this.transform.position,Quaternion.identity);
-        //StartCoroutine(TG.Player_Respawn());
-        //AS.Stop();
-        //AS.PlayOneShot(TG.DEATH_SE);
-        //TG.DEATH_Setter(true);
-        this.gameObject.SetActive(false);
-        //PC.enabled = false;
-        //Damage_Standby = false;
-        //Sp.color = new Color(1f, 1f, 1f, 0f);
-        //yield return new WaitForSeconds(3f);
-        //string scenename = SceneManager.GetActiveScene().name;
-        //SceneManager.LoadScene(scenename);
+        if (Blue)   LifeNum = 4;
+        if (Green)  LifeNum = 3;
+        if (Yellow) LifeNum = 2;
+        if (Red)    LifeNum = 1;
+        if (NoLife) LifeNum = 0;
+
+        Life_property = LifeNum;
     }
 
-    public IEnumerator DEATH_Fuyuka_Immedia()//トゲなどでの即死
+    public int Life_property
     {
-        //TG.LM.LifeDead();
-        PA.Damage_Audio();
-        Time.timeScale = 0.1f;
-        yield return new WaitForSeconds(0.05f);
-        Time.timeScale = 1;
-//Instantiate(TG.PlayerDEATH_Particle, this.transform.position, Quaternion.identity);
-        //StartCoroutine(TG.Player_Respawn());
-        //AS.Stop();
-        //AS.PlayOneShot(TG.DEATH_SE);
-        //TG.DEATH_Setter(true);
-        this.gameObject.SetActive(false);
-    }
-
-    //水にポチャるなどの即死トラップで死んだ場合、すぐに演出を開始する
-    public void DEATH_Fuyuka_Sea()
-    {
-        //TG.LM.LifeDead();
-        //Destroy(Instantiate(TG.Water_Object, this.transform.position, Quaternion.identity),1.0f);
-        Camera.main.GetComponent<AudioSource>().Stop();
-        //Camera.main.GetComponent<AudioSource>().PlayOneShot(TG.AM.WaterPotya);
-        //StartCoroutine(TG.Player_Respawn());
-        //TG.DEATH_Setter(true);
-        this.gameObject.SetActive(false);
-    }
-
-    public void StepAudioClip()//Unityのアニメーションイベントで鳴らす
-    {
-        PlayOneShotAudio(StepSE);
-    }
-
-    //このスクリプトが持つAudioClipを鳴らす
-    private void PlayAudio(AudioClip AC)
-    {
-        var PAM = GetComponent<Player_AudioManager>();
-        if (PAM != null) PAM.AudioPlayer(AC);
-    }
-
-    private void PlayOneShotAudio(AudioClip AC)
-    {
-        var PAM = GetComponent<Player_AudioManager>();
-        if (AC != null)
+        get { return LifeNum; }
+        set
         {
-            PAM.AudioPlayerOnplayOneShot(AC);
+            LifeNum = value;
         }
+    }
+
+    public int Item_property
+    {
+        get { return Item_number; }
+        set { }
+    }
+
+
+    //プレイヤーの何かを規制したい場合、このメソッドを使用
+    public void PlayerControll(bool Stop,bool Yukidama_Stop)
+    {
+        var PC = GetComponent<PlayerController>();
+        if (Yukidama_Stop)
+        {
+            //プレイヤーのアタックを中止
+            PC.Fuyuka_Attack_False();
+        }
+        if (Stop)
+        {
+            //プレイヤーの移動を中止
+            PC.Fuyuka_Stop();
+        }
+    }
+    /*
+    private void OnTriggerEnter2D(Collider2D col)
+    {
+        if (col.gameObject.tag == "Stage")
+        {
+            var camlim = col.gameObject.GetComponent<CameraLimit>();
+            if (camlim != null)
+            {
+                //そのチャンクのcameralimitスクリプトから値を代入する
+                
+                Camera_Limit_Setter(camlim.Limit_L, camlim.Limit_R);
+            }
+            else
+            {
+                Debug.LogError("このチャンクには「CameraLimit」スクリプトがついていないので画面簡易を実行できません");
+            }
+        }
+    }
+*/
+
+    private void OnTriggerExit2D(Collider2D col)
+    {
+        if(col.gameObject.GetComponent<CameraScroll>())
+        {
+            var Scrool = col.gameObject.GetComponent<CameraScroll>();
+            if (GetComponent<Rigidbody2D>().velocity.x < 0)//左向きの時
+            {
+                StartCoroutine(ScroolCamera(Scrool.R_Limit_L,Scrool.L_Limit_R,Scrool.time));
+                L_limit = Scrool.L_Limit_L;
+                R_limit = Scrool.L_Limit_R;
+            }
+            else//右向きの時
+            {
+                StartCoroutine(ScroolCamera(Scrool.L_Limit_R, Scrool.R_Limit_L,Scrool.time));
+                L_limit = Scrool.R_Limit_L;
+                R_limit = Scrool.R_Limit_R;
+            }
+        }
+    }
+
+    private IEnumerator ScroolCamera(float a,float b,float time)
+    {
+        CameraLerping = true;
+
+        float timeflame = 1 / (60 * time);//フレーム計算式
+        
+        for(float num = 0;num <= 1; num += timeflame)
+        {
+            Camera.main.transform.position = new Vector3(Mathf.Lerp(a, b, num), Camera.main.transform.position.y, Camera.main.transform.position.z);
+            yield return new WaitForSeconds(1/60);//画面のレンダリングの更新速度
+        }
+
+        CameraLerping = false;//移動を終えたらカメラの追従に移行させる
+    }
+
+
+    public void Camera_Limit_Setter(float L_Limit, float R_Limit)
+    {
+        //まず移行アニメーションを実行してから値の実行を行う
+        //いきなり代入すると、移行するのではなくワープしてしまっているように見えるため
+
+        /*
+        CameraLerping = true;
+
+        //左から侵入した場合
+        if (!this.gameObject.GetComponent<SpriteRenderer>().flipX)
+        {
+            for(int Num = 0;Num <= 100; Num++)
+            {
+                Debug.Log("繰り返し処理");
+                Debug.Log("R_limit =" + R_limit);
+                Debug.Log("L_Limit = " + L_Limit);
+                Lerping_Num = Mathf.Lerp(R_limit,L_Limit,Num/100);
+            }
+        }
+        //右から侵入した場合
+        if (this.gameObject.GetComponent<SpriteRenderer>().flipX)
+        {
+            for (int Num = 0; Num <= 100; Num++)
+            {
+                Debug.Log("繰り返し処理");
+                //Debug.Log("R_Limit =" + R_Limit);
+                //Debug.Log("L_limit = " + L_limit);
+                Lerping_Num = Mathf.Lerp(L_limit, R_Limit, Num / 100);
+                
+            }
+        }
+        //移行後に初めて値の代入がなされる
+
+        L_limit = L_Limit;
+        R_limit = R_Limit;
+
+        CameraLerping = false;
+        */
+
+
+    }
+    /*
+    public Vector3 Camera_Property
+    {
+        get
+        {
+            //カメラは常にプレイヤーの中心を追い続ける
+            //しかし、カメラが移動制限を超えようとしたら、最大値もしくは最小値に値をセットする
+            //画面移動する場合、このメソッドの処理を中断し、別のメソッドでカメラに値を代入する
+            
+
+            //Debug.Log("カメラの値　get＝ "+Camera_posX.x);
+
+
+            return new Vector3(Camera_posX.x, Camera_posX.y, -100);
+        }
+        //プレイヤーが８以上Limitの値から差が出た場合、カメラを次の場面に高速移動
+
+        set
+        {
+            Camera_posX = value;
+            if (L_limit >= Camera_posX.x && !CameraLerping) Camera_posX.x = L_limit;
+            if (R_limit <= Camera_posX.x && !CameraLerping) Camera_posX.x = R_limit;
+            //Debug.Log("カメラの値　set＝ " + Camera_posX.x);
+        }
+    }
+    */
+    public void _TakeDamage()
+    {
+        Debug.Log("プレイヤーはダメージを受けました！");
+
+        //ダメージが通る状態だったら、ダメージを通す
+        if (Damage)
+        {
+            //プレイヤーがダメージを食らった時の挙動をここに記す
+            PlayerControll(true, true);//移動と攻撃を中断させる
+
+
+            StartCoroutine(DamageSpan());
+            Life_property--;
+
+            GetComponent<Rigidbody2D>().velocity = new Vector2(-GetComponent<Rigidbody2D>().velocity.x, 6);
+
+        }
+    }
+
+    public void _YukidamaDamage()
+    {
+        return;
+    }
+    public void _SpinDamage()
+    {
+        return;
+    }
+    public void _WaterDEATH()
+    {
+
+    }
+
+    private IEnumerator DamageSpan()
+    {
+        Damage = false;
+        AlphaLevelSpeed = 10;//点滅の速さ
+
+        GetComponent<PlayerController>().enabled = false;
+        anim.SetBool("Damage", true);
+
+        yield return new WaitForSeconds(DamageWatingTime * 2 / 10);
+        GetComponent<PlayerController>().enabled = true;
+        anim.SetBool("Damage", false);
+
+        yield return new WaitForSeconds(DamageWatingTime * 5 / 10);
+        AlphaLevelSpeed = 20;//点滅の速さ
+
+        yield return new WaitForSeconds(DamageWatingTime * 3 / 10);
+        Damage = true;
+    }
+
+    public bool SpinStateGetter()//スピン中であるかを検査する
+    {
+        return anim.GetCurrentAnimatorStateInfo(0).IsTag("Attack");
     }
 }

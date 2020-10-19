@@ -1,11 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.UIElements;
 using UnityEngine;
 
 public class PlayerYukidamaManager : MonoBehaviour
 {
-    private PlayerStatusController PSC;
-    private PlayerController PC;
+    
     //整数型
 
     private int charge = 0;
@@ -31,13 +31,7 @@ public class PlayerYukidamaManager : MonoBehaviour
     public GameObject shadowsnow;//雪玉を集めているときのパーティクル
     public GameObject Instantshadowsnow;//雪玉を生成した時のパーティクル
 
-    
-
-
     private bool onSnowBall = false;//こいつがtrueのとき、雪玉に乗り続ける
-    private bool JumpOnYukidama = false;//雪玉の上でジャンプしたらfalseになる。雪玉以外の地面に着地するとtrueに戻る
-    private bool OnceOnJump = false;//雪玉からジャンプで降りるとき一回だけ発動。どこかに着地するとtrueに戻る
-
     private bool SpinAttack = false;
 
     //向きの判定
@@ -134,11 +128,13 @@ public class PlayerYukidamaManager : MonoBehaviour
             }
             if (onSnowBall)//足元に雪玉がきたら
             {
+
+                //ここにレイの指揮を立てる
                 this.transform.position = Ride_Fuyuka(this.transform.position, cloneSnow.transform.position);
+               
             }
         }
-
-        Debug.Log("throwingBall = "+throwingBall);
+        //Debug.Log("throwingBall = "+throwingBall);
         //Physics2D.IgnoreLayerCollision(LayerMask.NameToLayer("Player"), LayerMask.NameToLayer("Snow"), !throwingBall);
     }
 
@@ -360,6 +356,11 @@ public class PlayerYukidamaManager : MonoBehaviour
         }
     }
 
+    public bool OnSnowballGetter()
+    {
+        return onSnowBall;
+    }
+
     public void OnSnowballSetter()
     {
         onSnowBall = false;
@@ -367,11 +368,6 @@ public class PlayerYukidamaManager : MonoBehaviour
     public bool SpinAttackGetter()
     {
         return SpinAttack;
-    }
-
-    public void YukidamaJump(bool Setter)
-    {
-        JumpOnYukidama = Setter;
     }
 
     //このスクリプトが持つAudioClipを鳴らす
@@ -411,10 +407,13 @@ public class PlayerYukidamaManager : MonoBehaviour
         if (LayerName == "Snow")
         {
             //Debug.Log("雪玉に反応しています");
-            spin_counter = 0;
-            if (throwingBall)
+            if(col.gameObject.tag == "SnowRide")
             {
-                onSnowBall = true;
+                spin_counter = 0;
+                if (throwingBall)
+                {
+                    onSnowBall = true;
+                }
             }
         }
 
