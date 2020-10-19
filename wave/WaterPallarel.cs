@@ -27,7 +27,7 @@ public class WaterPallarel : MonoBehaviour
     public bool NotWaver;
     public bool NamerakaWaver;
     public bool GizaGizaWaver;
-    [SerializeField] public float WaverPower;//波打つパワー
+    [SerializeField] public float WaverPower = 0.001f;//波打つパワー
 
     //物理演算の結果を書き込み、読み込みを行う
     private NativeArray<Vector3> Vertices;
@@ -180,13 +180,6 @@ public class WaterPallarel : MonoBehaviour
         {
             StartCoroutine(WaverAlways());
         }
-        else if (GizaGizaWaver)
-        {
-            for (int i = 0; i < nodecount; i++)
-            {
-                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += 0.01f;
-            }
-        }
     }
 
     private int Num = 0;
@@ -222,7 +215,15 @@ public class WaterPallarel : MonoBehaviour
 
         _jobHandle.Complete();
 
-        
+
+
+        if (GizaGizaWaver)
+        {
+            for (int i = 0; i < nodecount; i++)
+            {
+                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += Random.Range(nodeWaver[i], WaverPower) / 100;
+            }
+        }
         nodeWaver.Dispose();
 
         _jobHandle = Wave.Schedule(xpositions.Length, 5);
@@ -236,8 +237,10 @@ public class WaterPallarel : MonoBehaviour
     {
         for(int i = 0; i < nodecount; i++)
         {
-            ypositions[i] += 0.005f;
-            yield return new WaitForSeconds(0.005f);
+            if(ypositions[i] <= WaverPower)ypositions[i] += WaverPower;
+
+            yield return new WaitForSeconds(Random.Range(0.01f,0.015f));
+            if (ypositions[i] <= WaverPower) ypositions[i] -= WaverPower;
         }
         if(NamerakaWaver) StartCoroutine(WaverAlways());
     }
@@ -445,6 +448,7 @@ public class WaterPallarel : MonoBehaviour
 
 public class WavePallarelEditor : Editor
 {
+    bool option = false;
     public override void OnInspectorGUI()
     {
         WaterPallarel WP = target as WaterPallarel;
@@ -461,13 +465,21 @@ public class WavePallarelEditor : Editor
             if (WP.ExpandSetting)
             {
                 //WP.Waver = EditorGUILayout.Toggle("常時波を揺らす", WP.Waver);
-                WP.Waver = EditorGUILayout.Foldout(WP.Waver, "常時波を揺らす");
+                WP.Waver = EditorGUILayout.Foldout(WP.Waver, "波を揺らす");
                 if (WP.Waver)
                 {
                     WP.NotWaver = EditorGUILayout.Toggle("揺らさない",!WP.NamerakaWaver && !WP.GizaGizaWaver);
                     WP.NamerakaWaver = EditorGUILayout.Toggle("滑らかに揺らす", !WP.NotWaver && !WP.GizaGizaWaver);
                     WP.GizaGizaWaver = EditorGUILayout.Toggle("ギザギザに揺らす", !WP.NamerakaWaver && !WP.NotWaver);
+                    
+                    option = EditorGUILayout.Foldout(option, "オプション");
+                    if (option)
+                    {
+                        WP.WaverPower = EditorGUILayout.FloatField("波打ちのパワー", WP.WaverPower);
+                    }
                 }
+
+                
                 //揺らす強さも設定する
             }
         }
