@@ -9,6 +9,7 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel;
 using Unity.Collections;
 using UnityEditor.UIElements;
+using System.Linq;
 
 public class WaterPallarel : MonoBehaviour
 {
@@ -16,7 +17,7 @@ public class WaterPallarel : MonoBehaviour
     [SerializeField] public bool WaveSetting;
     public float Width = 15;
     public float Bottom;
- 　 public float WavePower;
+    public float WavePower;
     public int WaveSpeed;
     public float SplashPower;
 
@@ -73,12 +74,6 @@ public class WaterPallarel : MonoBehaviour
     //スタート時に生成。設定をするだけなのでここではJobSystemは用いない
     public void SpawnWater(float Width, float Bottom)
     {
-        //判定を取り付ける
-        gameObject.AddComponent<BoxCollider2D>();
-        gameObject.GetComponent<BoxCollider2D>().offset = new Vector2(this.transform.position.x + Width / 2, (this.transform.position.y + Bottom) / 2);
-        gameObject.GetComponent<BoxCollider2D>().size = new Vector2(Width, this.transform.position.y - Bottom);
-        gameObject.GetComponent<BoxCollider2D>().isTrigger = true;
-
         edgecount = Mathf.RoundToInt(Width) * WaveSpeed;//設定する頂点の数。
         nodecount = edgecount + 1;//波に適用される実際の頂点（節目、節合点）。きちんと設定しなければぐちゃぐちゃになる
 
@@ -116,7 +111,7 @@ public class WaterPallarel : MonoBehaviour
             //頂点とUVを生成する。頂点はJobSystemで操作しやすいようにするためにこのような生成をしている。UVはその頂点の生成法に沿って一緒に作っている。
             float r = this.transform.position.x + (Width * i) / edgecount;
             Vertices[i * 2] = new Vector3(xpositions[i], ypositions[i], z);//上辺の頂点、左上
-            Vertices[i * 2 + 1] = new Vector3(xpositions[i], Bottom, z);//下辺の頂点、左下
+            Vertices[i * 2 + 1] = new Vector3(xpositions[i], ypositions[i] + Bottom, z);//下辺の頂点、左下
             UVs[i * 2] = new Vector2(r, 1f);
             UVs[i * 2 + 1] = new Vector2(r, 0f);
         }
@@ -134,9 +129,9 @@ public class WaterPallarel : MonoBehaviour
         }
 
         //上記までの生成結果をMeshに反映
-            meshes.vertices = Vertices.ToArray();
-            meshes.uv = UVs;
-            meshes.triangles = tris;
+        meshes.vertices = Vertices.ToArray();
+        meshes.uv = UVs;
+        meshes.triangles = tris;
 
         for (int i = 0; i < nodecount - 1; i++)
         {
@@ -146,9 +141,12 @@ public class WaterPallarel : MonoBehaviour
             meshobjects[i].transform.parent = transform;
 
         }
-        
-        for (int i = 0; i < nodecount - 1 ; i++)
+
+        for (int i = 0; i < nodecount - 1; i++)
         {
+            float r = this.transform.position.x + Width * (i + 0.5f) / nodecount * 2;
+
+            if (r > xpositions.Last()) return;
             //子オブジェクトとしてトリガーコライダーをセット
             colliders[i] = new GameObject();
             colliders[i].name = "WaveCollider";
@@ -156,25 +154,24 @@ public class WaterPallarel : MonoBehaviour
             colliders[i].transform.parent = transform;
 
             //適切なサイズにコライダーをリサイズ
-            colliders[i].transform.position = new Vector3(this.transform.position.x + Width * (i + 0.5f) / nodecount * 2, this.transform.position.y - 0.5f, 0);
+            colliders[i].transform.position = new Vector3(r, this.transform.position.y - 0.5f, 0);
             colliders[i].transform.localScale = new Vector3(Width / nodecount * 2, 1, 1);
 
             //各コライダーの設定を変更、反映
             colliders[i].GetComponent<BoxCollider2D>().isTrigger = true;
             colliders[i].AddComponent<WaterDetectorPallarel>();
+
         }
-        
+
     }
     void Update()
     {
-         AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
+        AlwaysWaver();//波を揺らす処理を追加したい場合は、様々な処理の事前処理としてここで行う
 
         nodeUpdate();//次はnodeを更新する
 
         //バッファ更新地点
         UpdateMeshes();
-
-        
 
         if (NamerakaWaver)
         {
@@ -221,7 +218,7 @@ public class WaterPallarel : MonoBehaviour
         {
             for (int i = 0; i < nodecount; i++)
             {
-                ypositions[Random.Range(i, (i + 20 < nodecount ? i + 20 : i + 10 < nodecount ? i + 10 : i + 5 < nodecount ? i + 5 : i))] += Random.Range(nodeWaver[i], WaverPower) / 100;
+                ypositions[Random.Range(0, nodecount)] += Random.Range(nodeWaver[i], WaverPower) / 200;
             }
         }
         nodeWaver.Dispose();
@@ -235,14 +232,14 @@ public class WaterPallarel : MonoBehaviour
 
     private IEnumerator WaverAlways()
     {
-        for(int i = 0; i < nodecount; i++)
+        for (int i = 0; i < nodecount; i++)
         {
-            if(ypositions[i] <= WaverPower)ypositions[i] += WaverPower;
+            if (ypositions[i] <= WaverPower) ypositions[i] += WaverPower;
 
-            yield return new WaitForSeconds(Random.Range(0.01f,0.015f));
+            yield return new WaitForSeconds(Random.Range(0f, 0.015f));
             if (ypositions[i] <= WaverPower) ypositions[i] -= WaverPower;
         }
-        if(NamerakaWaver) StartCoroutine(WaverAlways());
+        if (NamerakaWaver) StartCoroutine(WaverAlways());
     }
 
 
@@ -283,8 +280,8 @@ public class WaterPallarel : MonoBehaviour
         wrb1.Dispose();
 
     }//ノードを更新させ、波の粗い高低差を自然に直す
-    
-   
+
+
     [BurstCompile]
     struct WavePallarel : IJobParallelFor
     {
@@ -311,7 +308,8 @@ public class WaterPallarel : MonoBehaviour
         public float ft;
         public void Execute(int i)
         {
-            for (int j = 0; j < 10; j++){
+            for (int j = 0; j < 10; j++)
+            {
                 //Parallelの中だと！Unity乱数が！使えましぇ――ン！！！！！！
                 //擬似乱数
                 ft += (i % 11 == 0 ? 0.0013f : i % 9 == 0 ? 0.015776f : i % 7 == 0 ? 0.00672f : i % 5 == 0 ? 0.00379f : i % 3 == 0 ? 0.0091324f : i % 2 == 0 ? 0.0131f : 0.01f);
@@ -327,7 +325,7 @@ public class WaterPallarel : MonoBehaviour
 
         [ReadOnly] public NativeArray<float> xpositions;
         [ReadOnly] public NativeArray<float> ypositions;
-        
+
 
         //ypositionsとvelocitiesはそれぞれindexと違う値を参照するためReadOnlyにする必要がある。
         //よって最終的な書き込みは明示されたWriteOnlyでの変数からIJobPallarel脱出後に
@@ -335,7 +333,7 @@ public class WaterPallarel : MonoBehaviour
 
         //と、思ったが…
         //PallarelForにて配列を参照するときはindexと同じ番号の配列を参照しないとダメです、エラります（りふじんじん）
-        
+
         //最初の配列の値はすべて０。初期化はFixedUpdateに突入したすぐに行う
 
         public NativeArray<float> wlb1;
@@ -344,13 +342,12 @@ public class WaterPallarel : MonoBehaviour
         {
             if (index > 0)
             {
-                wlb1[index] = spread * (ypositions[index] - ypositions[index-1]);
+                wlb1[index] = spread * (ypositions[index] - ypositions[index - 1]);
             }
-            if (index < xpositions.Length-1)
+            if (index < xpositions.Length - 1)
             {
-                wrb1[index] = spread * (ypositions[index] - ypositions[index+1]);
+                wrb1[index] = spread * (ypositions[index] - ypositions[index + 1]);
             }
-
         }
     }
 
@@ -364,7 +361,7 @@ public class WaterPallarel : MonoBehaviour
         public void Execute(int i)//ここでメッシュの更新を行う
         {
             //普通のコードで行うと　ここが滅茶苦茶重い…ホントにマルチスレッド、いやJobSystemさまさまやで
-            if (i % 2 == 0) Vertices[i] = new Vector3(xpositions[i/2], ypositions[i/2], z);
+            if (i % 2 == 0) Vertices[i] = new Vector3(xpositions[i / 2], ypositions[i / 2], z);
         }
     }
 
@@ -386,19 +383,19 @@ public class WaterPallarel : MonoBehaviour
         _jobHandle.Complete();
     }
 
-    public void Splash(float xpos, float velocity_x, float velocity)
+    public void Splash(float xpos, float velocity_x, float velocity_y)
     {
-        
+
         if (xpos >= xpositions[0] && xpos <= xpositions[xpositions.Length - 1])
         {
             //波を揺らす座標を決める
             xpos -= xpositions[0];
             //与えられた情報から計算されたバッファ情報からどの頂点に触れられたかを計算する
             int index = Mathf.RoundToInt((xpositions.Length - 1) * (xpos / (xpositions[xpositions.Length - 1] - xpositions[0])));
-            
+
             //最終的な波の緩急処理はここ
             //触れたバッファーの高度をオブジェクトのvelocityの分だけ下げる
-            velocities[index] += velocity * WavePower;
+            velocities[index] += velocity_y * WavePower;
 
             //物体が波の表面で横移動をしても波が立つようにする
             if (velocity_x > 0)
@@ -414,22 +411,21 @@ public class WaterPallarel : MonoBehaviour
 
 
             //以下、パーティクルの処理
-            float lifetime = 0.93f + Mathf.Abs(velocity) * 0.07f;
+            float lifetime = 0.93f + Mathf.Abs(velocity_y) * 0.07f * SplashPower;
 
             //速度によって生成する水しぶきの密度を変更
-            int splashCount = (int)Mathf.Abs(velocity_x) + (int)Mathf.Abs(velocity);
+            int splashCount = (int)Mathf.Abs(velocity_x) + (int)Mathf.Abs(velocity_y);
 
-            if (velocity <= -7) velocity = -7;
-            splash.GetComponent<ParticleSystem>().startSpeed = ((Mathf.Abs(velocity) * SplashPower ) * 2 )  * Mathf.Pow(Mathf.Abs(velocity) + 1, Mathf.Abs(velocity)  + 1) + 1;
+            splash.GetComponent<ParticleSystem>().startSpeed = Mathf.Abs(velocity_y) * SplashPower + 1;
             splash.GetComponent<ParticleSystem>().startLifetime = lifetime;
 
-            if (splash.GetComponent<ParticleSystem>().startSpeed > 10) splash.GetComponent<ParticleSystem>().startSpeed = 10;
+            //if (splash.GetComponent<ParticleSystem>().startSpeed > 10) splash.GetComponent<ParticleSystem>().startSpeed = 10;
 
-            Vector3 position = new Vector3(xpositions[index], ypositions[index] - 0.35f, 5);
+            Vector3 position = new Vector3(xpositions[index], ypositions[index] - 0.35f, this.transform.position.z + 15);
 
             Quaternion rotation = Quaternion.LookRotation(new Vector3(xpositions[Mathf.FloorToInt(xpositions.Length / 2)], baseheight + 8, 5) - position);
 
-            for(int i = 0; i < splashCount; i++) Destroy(Instantiate(splash, position, rotation), lifetime + 0.3f);
+            for (int i = 0; i < splashCount; i++) Destroy(Instantiate(splash, position, rotation), lifetime + 0.3f);
         }
     }
 
@@ -448,47 +444,43 @@ public class WaterPallarel : MonoBehaviour
 
 public class WavePallarelEditor : Editor
 {
-    bool option = false;
     public override void OnInspectorGUI()
     {
         WaterPallarel WP = target as WaterPallarel;
-        WP.WaveSetting = EditorGUILayout.Foldout(WP.WaveSetting, "波の設定");
+        WP.WaveSetting = EditorGUILayout.Foldout(WP.WaveSetting, "波の設定 (Wave Setting)");
         if (WP.WaveSetting)
         {
-            WP.Width = EditorGUILayout.FloatField("横幅", WP.Width);
-            WP.Bottom = EditorGUILayout.FloatField("深さ", WP.Bottom);
-            WP.WavePower = EditorGUILayout.FloatField("波のパワー", WP.WavePower);
-            WP.WaveSpeed = EditorGUILayout.IntField("波のスピード（下げるほど早くなる）", WP.WaveSpeed);
-            WP.SplashPower = EditorGUILayout.FloatField("水しぶきの飛散力", WP.SplashPower);
+            WP.Width = EditorGUILayout.FloatField("横幅(Width)", WP.Width);
+            WP.Bottom = EditorGUILayout.FloatField("深さ (Depth)", WP.Bottom);
+            WP.WavePower = EditorGUILayout.FloatField("波のパワー(Reaction)", WP.WavePower);
+            WP.WaveSpeed = EditorGUILayout.IntField("波のスピード（Speed）", WP.WaveSpeed);
+            WP.SplashPower = EditorGUILayout.FloatField("水しぶきの飛散力(Splash Power)", WP.SplashPower);
 
-            WP.ExpandSetting = EditorGUILayout.Foldout(WP.ExpandSetting, "拡張機能");
+            WP.ExpandSetting = EditorGUILayout.Foldout(WP.ExpandSetting, "拡張機能(Expanding Setting)");
             if (WP.ExpandSetting)
             {
                 //WP.Waver = EditorGUILayout.Toggle("常時波を揺らす", WP.Waver);
-                WP.Waver = EditorGUILayout.Foldout(WP.Waver, "波を揺らす");
+                WP.Waver = EditorGUILayout.Foldout(WP.Waver, "波を揺らす(wave)");
                 if (WP.Waver)
                 {
-                    WP.NotWaver = EditorGUILayout.Toggle("揺らさない",!WP.NamerakaWaver && !WP.GizaGizaWaver);
+                    WP.NotWaver = EditorGUILayout.Toggle("揺らさない", !WP.NamerakaWaver && !WP.GizaGizaWaver);
                     WP.NamerakaWaver = EditorGUILayout.Toggle("滑らかに揺らす", !WP.NotWaver && !WP.GizaGizaWaver);
                     WP.GizaGizaWaver = EditorGUILayout.Toggle("ギザギザに揺らす", !WP.NamerakaWaver && !WP.NotWaver);
-                    
-                    option = EditorGUILayout.Foldout(option, "オプション");
-                    if (option)
-                    {
-                        WP.WaverPower = EditorGUILayout.FloatField("波打ちのパワー", WP.WaverPower);
-                    }
+
+
+                    WP.WaverPower = EditorGUILayout.FloatField("揺らすパワー（Waving Power）", WP.WaverPower);
                 }
 
-                
+
                 //揺らす強さも設定する
             }
         }
 
-        WP.OtherSetting = EditorGUILayout.Foldout(WP.OtherSetting, "その他の設定");
+        WP.OtherSetting = EditorGUILayout.Foldout(WP.OtherSetting, "マテリアルセット（Materials Setting）");
         if (WP.OtherSetting)
         {
             WP.splash = EditorGUILayout.ObjectField("水しぶきのパーティクル", WP.splash, typeof(GameObject), true) as GameObject;
-            WP.mat = EditorGUILayout.ObjectField("テクスチャマテリアル", WP.mat, typeof(GameObject), true) as Material;
+            WP.mat = EditorGUILayout.ObjectField("テクスチャマテリアル", WP.mat, typeof(Material), true) as Material;
             WP.watermesh = EditorGUILayout.ObjectField("テクスチャメッシュ", WP.watermesh, typeof(GameObject), true) as GameObject;
         }
         EditorUtility.SetDirty(target);//この処理を忘れると変数の変更が反映されない呪いに掛かる
