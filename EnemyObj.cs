@@ -39,8 +39,8 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
         //Enemydata = transform.parent.GetComponent<EnemySpawner>().GetEnemyData();
 
         //データの定義
-        this.transform.localScale = new Vector3(Enemydata.EnemySpriteSetting.Scale, Enemydata.EnemySpriteSetting.Scale, 1);
-        HP = Enemydata.EnemyObjectSetting.HP;
+        this.transform.localScale = new Vector3(Enemydata.Scale, Enemydata.Scale, 1);
+        HP = Enemydata.HP;
         rbody = GetComponent<Rigidbody2D>();
         
     }
@@ -70,7 +70,7 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
         if (!_DEATH)//やられているのに行動されちゃあまずいからさ…
         {
             //一定距離までプレイヤーが敵に近づいたら行動開始
-            if (Mathf.Abs(this.gameObject.transform.localPosition.x - Player.transform.localPosition.x) < Enemydata.AgainstPlayerSetting.PlayerSearchRange)
+            if (Mathf.Abs(this.gameObject.transform.localPosition.x - Player.transform.localPosition.x) < Enemydata.PlayerSearchRange)
             {
                 _ConstraintsCheck();
                 _move();
@@ -95,27 +95,27 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
                 //anim.SetFloat("Run", Mathf.Abs(-3));
 
                 //空中と地上(雪地)と地上（氷面）で加速度が違う
-                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed_OnIce, 0));
-                else if (FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed, 0));
-                else rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed_InAir, 0));
+                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(-Enemydata.Speed_OnIce, 0));
+                else if (FloorTaken) rbody.AddForce(new Vector2(-Enemydata.Speed, 0));
+                else rbody.AddForce(new Vector2(-Enemydata.Speed_InAir, 0));
 
                 //または、サーチ範囲内にいるにもかかわらず、何らかの原因で速度が激減した場合もジャンプ行動を行う
                 if (rbody.velocity.x >= 0) _jump();
 
-                if (rbody.velocity.x < -Enemydata.EnemyActionSetting.MaxSpeed) rbody.velocity = new Vector2(-Enemydata.EnemyActionSetting.MaxSpeed, rbody.velocity.y);
+                if (rbody.velocity.x < -Enemydata.MaxSpeed) rbody.velocity = new Vector2(-Enemydata.MaxSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = false;
                 break;
             case _MoveDir.Right:
                 //anim.SetFloat("Run", Mathf.Abs(3));
 
                 //空中と地上(雪地)と地上（氷面）で加速度が違う
-                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed_OnIce, 0));
-                else if (FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed, 0));
-                else rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed_InAir, 0));
+                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(Enemydata.Speed_OnIce, 0));
+                else if (FloorTaken) rbody.AddForce(new Vector2(Enemydata.Speed, 0));
+                else rbody.AddForce(new Vector2(Enemydata.Speed_InAir, 0));
 
                 if (rbody.velocity.x <= 0) _jump();
 
-                if (rbody.velocity.x > Enemydata.EnemyActionSetting.MaxSpeed) rbody.velocity = new Vector2(Enemydata.EnemyActionSetting.MaxSpeed, rbody.velocity.y);
+                if (rbody.velocity.x > Enemydata.MaxSpeed) rbody.velocity = new Vector2(Enemydata.MaxSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = true;
                 break;
             case _MoveDir.Wait:
@@ -158,10 +158,10 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
     {
         //そもそも接地判定があるのか
         //無ければそもそもジャンプする必要はない
-        if (Enemydata.ColliderSetting.BoxCol)
+        if (Enemydata.BoxCol)
         {
 
-            if (FloorTaken || iceFloorTaken) rbody.velocity = new Vector2(rbody.velocity.x, Enemydata.EnemyActionSetting.JumpPower);
+            if (FloorTaken || iceFloorTaken) rbody.velocity = new Vector2(rbody.velocity.x, Enemydata.JumpPower);
 
         }
     }
@@ -199,18 +199,18 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
 
     private void _ConstraintsCheck()
     {
-        if (Enemydata.RigidBodySetting.constant_z && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_z)
+        if (Enemydata.constant_z && !Enemydata.PlayerRangeWithconstant_z)
         {
-            if (Enemydata.RigidBodySetting.constant_x && Enemydata.RigidBodySetting.constant_y&& !Enemydata.RigidBodySetting.PlayerRangeWithconstant_x && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_y)
+            if (Enemydata.constant_x && Enemydata.constant_y&& !Enemydata.PlayerRangeWithconstant_x && !Enemydata.PlayerRangeWithconstant_y)
             {
                 //ｘ、ｙ、ｚの全てが押されている
                 GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezeAll;
             }
-            else if (Enemydata.RigidBodySetting.constant_y && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_y)
+            else if (Enemydata.constant_y && !Enemydata.PlayerRangeWithconstant_y)
             {
                 GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionY | RigidbodyConstraints2D.FreezeRotation;
             }//この時点で、zは押されているが、ｙは押されていないということがわかる
-            else if (Enemydata.RigidBodySetting.constant_x && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_x)
+            else if (Enemydata.constant_x && !Enemydata.PlayerRangeWithconstant_x)
             {
                 GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
             }
@@ -221,9 +221,9 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
             }
         }
         //この時点でzが押されているということはなくなった
-        else if (Enemydata.RigidBodySetting.constant_y && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_y)
+        else if (Enemydata.constant_y && !Enemydata.PlayerRangeWithconstant_y)
         {
-            if (Enemydata.RigidBodySetting.constant_x && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_x)
+            if (Enemydata.constant_x && !Enemydata.PlayerRangeWithconstant_x)
             {
                 GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezePositionY;
             }
@@ -234,7 +234,7 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
             }
         }
         //この時点でｙが押されているということはなくなった
-        else if (Enemydata.RigidBodySetting.constant_x && !Enemydata.RigidBodySetting.PlayerRangeWithconstant_x)
+        else if (Enemydata.constant_x && !Enemydata.PlayerRangeWithconstant_x)
         {
             //ｘのみが押されている
             GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX;
@@ -265,7 +265,7 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
             var obj = col.gameObject.GetComponent<PlayerStatusController>();
             //大抵falseが帰ってくるので、それで判別
             //また、スピンペネトレーション（スピン貫通）が働いていたらそれもダメージ通す
-            if (obj.SpinStateGetter() && !Enemydata.AgainstPlayerSetting.PlayerSpinPenetration && !_Damage)
+            if (obj.SpinStateGetter() && !Enemydata.PlayerSpinPenetration && !_Damage)
             {
                 //プレイヤーがスピンしながら突っ込んできた場合、敵は死ぬ
                 HP--;

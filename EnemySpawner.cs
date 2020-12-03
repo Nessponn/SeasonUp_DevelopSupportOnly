@@ -42,7 +42,7 @@ public class EnemySpawner : MonoBehaviour
         }
         else
         {
-            if (!enemy) Respawn = EnemyData.EnemyObjectSetting.Respawn;
+            if (!enemy) Respawn = EnemyData.Respawn;
         }
 
     }
@@ -61,43 +61,43 @@ public class EnemySpawner : MonoBehaviour
 
         //敵を形成する判定として必要なものを渡す
         //enemy.GetComponent<CircleCollider2D>().size = new Vector2(1, enemy.transform.localScale.y);
-        enemy.GetComponent<CircleCollider2D>().offset = new Vector2(0, EnemyData.ColliderSetting.Circleoffset_y);
-        enemy.GetComponent<CircleCollider2D>().radius = EnemyData.ColliderSetting.radius;
+        enemy.GetComponent<CircleCollider2D>().offset = new Vector2(0, EnemyData.Circleoffset_y);
+        enemy.GetComponent<CircleCollider2D>().radius = EnemyData.radius;
         
 
 
-        if (EnemyData.ColliderSetting.BoxCol)
+        if (EnemyData.BoxCol)
         {//着地を有効にする
             
             //敵の判定とは別に、着地を行う足の判定をつけるための判定
-            enemy.GetComponentInChildren<BoxCollider2D>().size = new Vector2(EnemyData.ColliderSetting.Boxsize_x, EnemyData.ColliderSetting.Boxsize_y);
-            enemy.GetComponentInChildren<BoxCollider2D>().offset = new Vector2(EnemyData.ColliderSetting.Boxoffset_x, EnemyData.ColliderSetting.Boxoffset_y);
+            enemy.GetComponentInChildren<BoxCollider2D>().size = new Vector2(EnemyData.Boxsize_x, EnemyData.Boxsize_y);
+            enemy.GetComponentInChildren<BoxCollider2D>().offset = new Vector2(EnemyData.Boxoffset_x, EnemyData.Boxoffset_y);
             enemy.transform.GetChild(0).gameObject.layer = LayerMask.NameToLayer("Enemy");
         }
         else
         {
             //着地を無効にし、床をすり抜けるようにする
-            enemy.GetComponentInChildren<BoxCollider2D>().size = new Vector2(EnemyData.ColliderSetting.Boxsize_x, EnemyData.ColliderSetting.Boxsize_y);
-            enemy.GetComponentInChildren<BoxCollider2D>().offset = new Vector2(EnemyData.ColliderSetting.Boxoffset_x, EnemyData.ColliderSetting.Boxoffset_y);
+            enemy.GetComponentInChildren<BoxCollider2D>().size = new Vector2(EnemyData.Boxsize_x, EnemyData.Boxsize_y);
+            enemy.GetComponentInChildren<BoxCollider2D>().offset = new Vector2(EnemyData.Boxoffset_x, EnemyData.Boxoffset_y);
             enemy.transform.GetChild(0).gameObject.layer = LayerMask.NameToLayer("EnemythroughFloor");
         }
 
         //リジッドボディーの設定
-        enemy.GetComponent<Rigidbody2D>().mass = EnemyData.RigidBodySetting.Mass;
-        enemy.GetComponent<Rigidbody2D>().gravityScale = EnemyData.RigidBodySetting.Gravity;
+        enemy.GetComponent<Rigidbody2D>().mass = EnemyData.Mass;
+        enemy.GetComponent<Rigidbody2D>().gravityScale = EnemyData.Gravity;
 
-        if (EnemyData.RigidBodySetting.constant_z)
+        if (EnemyData.constant_z)
         {
-            if (EnemyData.RigidBodySetting.constant_x && EnemyData.RigidBodySetting.constant_y)
+            if (EnemyData.constant_x && EnemyData.constant_y)
             {
                 //ｘ、ｙ、ｚの全てが押されている
                 enemy.GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezeAll;
             }
-            else if (EnemyData.RigidBodySetting.constant_y)
+            else if (EnemyData.constant_y)
             {
                 enemy.GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionY | RigidbodyConstraints2D.FreezeRotation;
             }//この時点で、zは押されているが、ｙは押されていないということがわかる
-            else if (EnemyData.RigidBodySetting.constant_x)
+            else if (EnemyData.constant_x)
             {
                 enemy.GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
             }
@@ -108,9 +108,9 @@ public class EnemySpawner : MonoBehaviour
             }
         }
         //この時点でzが押されているということはなくなった
-        else if (EnemyData.RigidBodySetting.constant_y)
+        else if (EnemyData.constant_y)
         {
-            if (EnemyData.RigidBodySetting.constant_x)
+            if (EnemyData.constant_x)
             {
                 enemy.GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezePositionY;
             }
@@ -121,7 +121,7 @@ public class EnemySpawner : MonoBehaviour
             }
         }
         //この時点でｙが押されているということはなくなった
-        else if (EnemyData.RigidBodySetting.constant_x)
+        else if (EnemyData.constant_x)
         {
             //ｘのみが押されている
             enemy.GetComponent<Rigidbody2D>().constraints = RigidbodyConstraints2D.FreezePositionX;
@@ -133,7 +133,7 @@ public class EnemySpawner : MonoBehaviour
         }
 
         //SpriteRendererのアタッチ
-        enemy.GetComponent<SpriteRenderer>().sprite = EnemyData.EnemySpriteSetting.Image;
+        enemy.GetComponent<SpriteRenderer>().sprite = EnemyData.Image;
         enemy.gameObject.tag = "Enemy";
         //敵の行動パターンやデータを入れる.
         //データの送信は、メソッド開始時にStartメソッドで行われる
@@ -148,7 +148,7 @@ public class EnemySpawner : MonoBehaviour
     {
         if(EnemyData != null)
         {
-            GetComponent<SpriteRenderer>().sprite = EnemyData.EnemySpriteSetting.Image;
+            GetComponent<SpriteRenderer>().sprite = EnemyData.Image;
 
             //スケールはスポナーのスケールと同じものにしても大丈夫
             //敵オブジェクトの方には、いいスケールデータの渡し方が今のところ思いつかないのでこのままで…
