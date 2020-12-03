@@ -26,6 +26,11 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
     //ステータス
     private int HP;
 
+
+    //このオブジェクトの設定
+    private bool OutRangeDelete;//画面外に出たら消えるようになる
+
+
     //private GameObject Player;
     private void Start()
     {
@@ -90,27 +95,27 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
                 //anim.SetFloat("Run", Mathf.Abs(-3));
 
                 //空中と地上(雪地)と地上（氷面）で加速度が違う
-                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyObjectSetting.Speed_OnIce, 0));
-                else if (FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyObjectSetting.Speed, 0));
-                else rbody.AddForce(new Vector2(-Enemydata.EnemyObjectSetting.Speed_InAir, 0));
+                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed_OnIce, 0));
+                else if (FloorTaken) rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed, 0));
+                else rbody.AddForce(new Vector2(-Enemydata.EnemyActionSetting.Speed_InAir, 0));
 
                 //または、サーチ範囲内にいるにもかかわらず、何らかの原因で速度が激減した場合もジャンプ行動を行う
                 if (rbody.velocity.x >= 0) _jump();
 
-                if (rbody.velocity.x < -Enemydata.EnemyObjectSetting.MaxSpeed) rbody.velocity = new Vector2(-Enemydata.EnemyObjectSetting.MaxSpeed, rbody.velocity.y);
+                if (rbody.velocity.x < -Enemydata.EnemyActionSetting.MaxSpeed) rbody.velocity = new Vector2(-Enemydata.EnemyActionSetting.MaxSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = false;
                 break;
             case _MoveDir.Right:
                 //anim.SetFloat("Run", Mathf.Abs(3));
 
                 //空中と地上(雪地)と地上（氷面）で加速度が違う
-                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyObjectSetting.Speed_OnIce, 0));
-                else if (FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyObjectSetting.Speed, 0));
-                else rbody.AddForce(new Vector2(Enemydata.EnemyObjectSetting.Speed_InAir, 0));
+                if (iceFloorTaken && FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed_OnIce, 0));
+                else if (FloorTaken) rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed, 0));
+                else rbody.AddForce(new Vector2(Enemydata.EnemyActionSetting.Speed_InAir, 0));
 
                 if (rbody.velocity.x <= 0) _jump();
 
-                if (rbody.velocity.x > Enemydata.EnemyObjectSetting.MaxSpeed) rbody.velocity = new Vector2(Enemydata.EnemyObjectSetting.MaxSpeed, rbody.velocity.y);
+                if (rbody.velocity.x > Enemydata.EnemyActionSetting.MaxSpeed) rbody.velocity = new Vector2(Enemydata.EnemyActionSetting.MaxSpeed, rbody.velocity.y);
                 GetComponent<SpriteRenderer>().flipX = true;
                 break;
             case _MoveDir.Wait:
@@ -156,7 +161,7 @@ public class EnemyObj : MonoBehaviour,DamagableObject,AI_Logic_Enemy
         if (Enemydata.ColliderSetting.BoxCol)
         {
 
-            if (FloorTaken || iceFloorTaken) rbody.velocity = new Vector2(rbody.velocity.x, Enemydata.EnemyObjectSetting.JumpPower);
+            if (FloorTaken || iceFloorTaken) rbody.velocity = new Vector2(rbody.velocity.x, Enemydata.EnemyActionSetting.JumpPower);
 
         }
     }

@@ -6,6 +6,8 @@ using UnityEditor;
 //[ExecuteInEditMode]…実行したものが、エディターの再生を止めても残り続ける設定
 public class EnemySpawner : MonoBehaviour
 {
+    //アクティブバランサーを考慮した設計にする（）
+
     //EnemyObjを発生させるためのもの。
 
     //スポナーにつけるもの
@@ -40,7 +42,7 @@ public class EnemySpawner : MonoBehaviour
         }
         else
         {
-            if (!enemy) Respawn = EnemyData.EnemyObjectSetting.Reapawn;
+            if (!enemy) Respawn = EnemyData.EnemyObjectSetting.Respawn;
         }
 
     }
