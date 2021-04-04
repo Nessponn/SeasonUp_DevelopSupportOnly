@@ -42,7 +42,7 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
     // Start is called before the first frame update
     void Start()
     {
-        //StageGrid.GetComponent<Tilemap>().orientation = Tilemap.Orientation.Custom;
+       
     }
 
     public void AudioStart()
@@ -159,10 +159,10 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
     private class TileInfo
     {
         public readonly Vector3Int m_position;
-        public readonly Quaternion m_rotation;
+        public readonly Vector3 m_rotation;
         public readonly TileBase m_tile;
 
-        public TileInfo(Vector3Int position,int addposition_x, Quaternion rotation, TileBase tile,int distance)
+        public TileInfo(Vector3Int position,int addposition_x, Vector3 rotation, TileBase tile,int distance)
         {
             position.x -= distance;
             position.x += addposition_x;
@@ -191,11 +191,19 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
     */
     public void PassTile()
     {
+        //タイルの情報をずらす
+        //0から-1担った瞬間、座標を0基準でタイル情報を左にずらす
+
+
+        //タイルから何列目にいるか（y軸の値）の情報を引き出す
         int num = 0;
+        //Vector3Int vec;
         var tilemap = StageGrid.GetComponent<Tilemap>();
         var bound = StageGrid.GetComponent<Tilemap>().cellBounds;
 
         int gridnum = bound.max.x;
+
+        //bound.max = new Vector3Int(bound.max.x - 1, bound.max.y, bound.max.z);
 
         var list = new List<TileInfo>();
 
@@ -204,29 +212,28 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
         {
             for (int x = bound.min.x; x < gridnum; ++x)
             {
-                
-                Tile tile = StageGrid.GetComponent<Tilemap>().GetTile<Tile>(new Vector3Int(x, y, 0));
+                //Debug.Log("x = " + x);
+                //タイルの情報を下記の１行のコードに格納する
+                //タイルの座標、メソッドだと思っていた部分で取れるのビビったんやけど…
+                //var tile = StageGrid.GetComponent<Tilemap>().GetTile<Tile>(vec = new Vector3Int(x, y, 0));
+
+                //vec.x -= 1;
+
+                var tile = StageGrid.GetComponent<Tilemap>().GetTile<Tile>(new Vector3Int(x, y, 0));
 
                 var position = new Vector3Int(x, y, 0);
-                if (tile != null)
+                Vector3 rotation = tilemap.GetTransformMatrix(position).rotation.eulerAngles;//回転を取る
+
+                //タイルのxの位置がタイルの最小の値より大きい（左側に位置している）なら
+                if (position.x >= bound.min.x)
                 {
-                    Quaternion rota = tile.transform.rotation;//回転を取る
+                    //
+                    var info = new TileInfo(position, 0,rotation, tile, distance);
+                    list.Add(info);
 
-                    //if (rota != new Vector3(0, 0, 0)) Debug.Log("rotation = " + rota);
-
-
-
-                    //タイルのxの位置がタイルの最小の値より大きい（左側に位置している）なら
-                    if (position.x >= bound.min.x)
-                    {
-                        //
-                        var info = new TileInfo(position, 0, rota, tile, distance);
-                        list.Add(info);
-
-                        //本マップの幅が17以下になったらマップを補充する
-                    }
-
+                    //本マップの幅が17以下になったらマップを補充する
                 }
+
 
                 if (list.Count <= 0) return;
 
@@ -241,14 +248,8 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 if (position.x >= bound.min.x)
                 {
                     tilemap.SetTile(position, data.m_tile);
-
-                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero, rotation, Vector3.one);
-
-                    
-
+                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero, Quaternion.Euler(rotation), Vector3.one);
                     tilemap.SetTransformMatrix(position, matrix);
-
-                    //if (tilemap.GetTransformMatrix(position).rotation.eulerAngles != new Vector3(0, 0, 0)) Debug.Log("mat_rotation = " + tilemap.GetTransformMatrix(position).rotation.eulerAngles);
                 }
                 else
                 {
@@ -258,6 +259,7 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
 
 
                 position.x += 1;
+                tilemap.SetTile(position, null);
             }
         }
 
@@ -301,26 +303,22 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 var tile = StageGrid.GetComponent<Tilemap>().GetTile<Tile>(new Vector3Int(x, y, 0));
                 //var tile2 = StageMaps[num].GetComponent<Tilemap>().GetTile<Tile>(new Vector3Int(x, y, 0));
 
-                if(tile != null)
-                {
+                var position = new Vector3Int(x, y, 0);
+                Vector3 rotation = tilemap.GetTransformMatrix(position).rotation.eulerAngles;//回転を取る
 
-                    var position = new Vector3Int(x, y, 0);
-                    Quaternion rotation = tile.transform.rotation;//回転を取る
+                //var position2 = new Vector3Int(x, y, 0);
+                //Vector3 rotation2 = tilemap.GetTransformMatrix(position2).rotation.eulerAngles;//回転を取る
 
-                    //var position2 = new Vector3Int(x, y, 0);
-                    //Vector3 rotation2 = tilemap.GetTransformMatrix(position2).rotation.eulerAngles;//回転を取る
+                //タイルのxの位置がタイルの最小の値より大きい（右側に位置している）なら
 
-                    //タイルのxの位置がタイルの最小の値より大きい（右側に位置している）なら
+                var info  = new TileInfo(position, 0, rotation, tile, distance);
+                //var info2 = new TileInfo(position2, gridnum + x, rotation, tile2, distance);
+                list.Add(info);
+                //list.Add(info2);
 
-                    var info = new TileInfo(position, 0, rotation, tile, distance);
-                    //var info2 = new TileInfo(position2, gridnum + x, rotation, tile2, distance);
-                    list.Add(info);
-                    //list.Add(info2);
+                //本マップの幅が17以下になったらマップを補充する
 
-                    //本マップの幅が17以下になったらマップを補充する
-
-                    //続いて下記より、追加マップ分のタイルの追加を行う
-                }
+                //続いて下記より、追加マップ分のタイルの追加を行う
 
             }
             
@@ -337,26 +335,20 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 //var position = new Vector3Int(x, y, 0);
                 //Vector3 rotation = tilemap.GetTransformMatrix(position).rotation.eulerAngles;//回転を取る
 
-                if (tile2 != null)
-                {
-                    var position2 = new Vector3Int(x, y, 0);
-                    Quaternion rotation2 = tile2.transform.rotation;//回転を取る
+                var position2 = new Vector3Int(x, y, 0);
+                Vector3 rotation2 = addtilemap.GetTransformMatrix(position2).rotation.eulerAngles;//回転を取る
 
-                    //Debug.Log("rotation = " + rotation2);
+                //Debug.Log("rotation = " + rotation2);
 
-                    //タイルのxの位置がタイルの最小の値より大きい（右側に位置している）なら
+                //タイルのxの位置がタイルの最小の値より大きい（右側に位置している）なら
 
-                    //var info = new TileInfo(position, 0, rotation, tile, distance);
+                //var info = new TileInfo(position, 0, rotation, tile, distance);
 
-                    //このコードで間違いない。なんか地形に断裂っぽいのがあったらそういうもんだと思え
-                    var info = new TileInfo(position2, bound.max.x + Mathf.Abs(add_bound.min.x), rotation2, tile2, distance);
-                    //list.Add(info);
-                    list.Add(info);
-                }
-                else
-                {
+                //このコードで間違いない。なんか地形に断裂っぽいのがあったらそういうもんだと思え
+                var info = new TileInfo(position2, bound.max.x + Mathf.Abs(add_bound.min.x), rotation2, tile2, distance);
+                //list.Add(info);
+                list.Add(info);
 
-                }
                 //本マップの幅が17以下になったらマップを補充する
 
                 //続いて下記より、追加マップ分のタイルの追加を行う
@@ -374,8 +366,7 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 if (position.x >= bound.min.x)
                 {
                     tilemap.SetTile(position, data.m_tile);
-                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero,rotation, Vector3.one);
-                    
+                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero, Quaternion.Euler(rotation), Vector3.one);
                     tilemap.SetTransformMatrix(position, matrix);
                 }
                 else
@@ -385,7 +376,7 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 }
 
                 position.x += 1;
-                //tilemap.SetTile(position, null);
+                tilemap.SetTile(position, null);
             }
         }
 
@@ -416,7 +407,7 @@ public class TitleManager : SingletonMonoBehaviourFast<TitleManager>
                 if (position.x >= bound.min.x)
                 {
                     tilemap.SetTile(position, data.m_tile);
-                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero, rotation, Vector3.one);
+                    Matrix4x4 matrix = Matrix4x4.TRS(Vector3Int.zero, Quaternion.Euler(rotation), Vector3.one);
                     tilemap.SetTransformMatrix(position, matrix);
                 }
                 else
